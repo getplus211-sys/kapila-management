@@ -43,7 +43,7 @@ dependencies:
 
   # Media & Chat
   image_picker: 1.0.7
-  emoji_picker_flutter: 1.6.3
+  emoji_picker_flutter: ^1.6.3
   file_picker: 6.1.1
 
   # Contacts

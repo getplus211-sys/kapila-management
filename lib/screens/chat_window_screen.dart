@@ -38,7 +38,7 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
   final List<Message> _messages = [];
   final _imagePicker = ImagePicker();
   final Set<String> _selectedMessages = {};
-  
+
   bool _isLoading = true;
   bool _isTyping = false;
   bool _isSending = false;
@@ -115,12 +115,12 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
           .select('is_online, last_seen')
           .eq('user_id', widget.otherUserId)
           .single();
-      
+
       setState(() {
         _isUserOnline = userData['is_online'] ?? false;
-        _userLastSeen = userData['last_seen'] != null 
-          ? DateTime.parse(userData['last_seen'])
-          : null;
+        _userLastSeen = userData['last_seen'] != null
+            ? DateTime.parse(userData['last_seen'])
+            : null;
       });
     } catch (e) {
       debugPrint('Error checking online status: $e');
@@ -161,7 +161,8 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
           messageId: item['message_id'],
           chatId: item['chat_id'],
           senderId: item['sender_id'],
-          senderName: senderInfo?['full_name'] ?? senderInfo?['username'] ?? 'Unknown',
+          senderName:
+              senderInfo?['full_name'] ?? senderInfo?['username'] ?? 'Unknown',
           senderAvatar: senderInfo?['profile_picture_url'],
           messageType: item['message_type'],
           content: item['content'],
@@ -171,7 +172,9 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
           isEdited: item['is_edited'] ?? false,
           isDeleted: item['is_deleted'] ?? false,
           createdAt: DateTime.parse(item['created_at']),
-          editedAt: item['edited_at'] != null ? DateTime.parse(item['edited_at']) : null,
+          editedAt: item['edited_at'] != null
+              ? DateTime.parse(item['edited_at'])
+              : null,
           isDelivered: item['is_delivered'] ?? false,
           isRead: item['is_read_by_all'] ?? false,
         ));
@@ -228,7 +231,8 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
         messageId: record['message_id'],
         chatId: record['chat_id'],
         senderId: record['sender_id'],
-        senderName: senderInfo?['full_name'] ?? senderInfo?['username'] ?? 'Unknown',
+        senderName:
+            senderInfo?['full_name'] ?? senderInfo?['username'] ?? 'Unknown',
         senderAvatar: senderInfo?['profile_picture_url'],
         messageType: record['message_type'],
         content: record['content'],
@@ -255,12 +259,15 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
   void _handleMessageUpdate(Map<String, dynamic> record) {
     if (mounted) {
       setState(() {
-        final index = _messages.indexWhere((m) => m.messageId == record['message_id']);
+        final index =
+            _messages.indexWhere((m) => m.messageId == record['message_id']);
         if (index != -1) {
           _messages[index] = _messages[index].copyWith(
             content: record['content'],
             isEdited: record['is_edited'] ?? false,
-            editedAt: record['edited_at'] != null ? DateTime.parse(record['edited_at']) : null,
+            editedAt: record['edited_at'] != null
+                ? DateTime.parse(record['edited_at'])
+                : null,
             isDeleted: record['is_deleted'] ?? false,
           );
         }
@@ -285,7 +292,8 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
           .from('ngm_chat_participants')
           .update({
             'unread_count': 0,
-            'last_read_message_id': _messages.isNotEmpty ? _messages.last.messageId : null,
+            'last_read_message_id':
+                _messages.isNotEmpty ? _messages.last.messageId : null,
           })
           .eq('chat_id', widget.chatId)
           .eq('user_id', userId);
@@ -341,8 +349,8 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
 
       await _supabase
           .from('ngm_chats')
-          .update({'last_message_at': DateTime.now().toIso8601String()})
-          .eq('chat_id', widget.chatId);
+          .update({'last_message_at': DateTime.now().toIso8601String()}).eq(
+              'chat_id', widget.chatId);
 
       _messageController.clear();
       setState(() {
@@ -362,14 +370,11 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
 
   Future<void> _updateMessage(String newContent) async {
     try {
-      await _supabase
-          .from('ngm_messages')
-          .update({
-            'content': newContent,
-            'is_edited': true,
-            'edited_at': DateTime.now().toIso8601String(),
-          })
-          .eq('message_id', _editingMessage!.messageId);
+      await _supabase.from('ngm_messages').update({
+        'content': newContent,
+        'is_edited': true,
+        'edited_at': DateTime.now().toIso8601String(),
+      }).eq('message_id', _editingMessage!.messageId);
 
       _messageController.clear();
       setState(() {
@@ -453,7 +458,8 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
 
   Future<void> _pickImageFromGallery() async {
     try {
-      final XFile? image = await _imagePicker.pickImage(source: ImageSource.gallery);
+      final XFile? image =
+          await _imagePicker.pickImage(source: ImageSource.gallery);
       if (image != null) {
         await _uploadAndSendMedia(File(image.path), 'image');
       }
@@ -464,7 +470,8 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
 
   Future<void> _takePhoto() async {
     try {
-      final XFile? photo = await _imagePicker.pickImage(source: ImageSource.camera);
+      final XFile? photo =
+          await _imagePicker.pickImage(source: ImageSource.camera);
       if (photo != null) {
         await _uploadAndSendMedia(File(photo.path), 'image');
       }
@@ -475,7 +482,8 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
 
   Future<void> _pickVideo() async {
     try {
-      final XFile? video = await _imagePicker.pickVideo(source: ImageSource.gallery);
+      final XFile? video =
+          await _imagePicker.pickVideo(source: ImageSource.gallery);
       if (video != null) {
         await _uploadAndSendMedia(File(video.path), 'video');
       }
@@ -502,15 +510,16 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
       final userId = _supabase.auth.currentUser?.id;
       if (userId == null) return;
 
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
+      final fileName =
+          '${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
       final filePath = 'chat-media/$userId/$fileName';
 
       await _supabase.storage.from('nandigram-storage').upload(filePath, file);
 
-      final mediaUrl = _supabase.storage.from('nandigram-storage').getPublicUrl(filePath);
+      final mediaUrl =
+          _supabase.storage.from('nandigram-storage').getPublicUrl(filePath);
 
       await _sendMessage(mediaUrl: mediaUrl, mediaType: type);
-
     } catch (e) {
       debugPrint('Error uploading media: $e');
       setState(() => _isSending = false);
@@ -590,7 +599,7 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
           'reason': 'User blocked from chat',
           'created_at': DateTime.now().toIso8601String(),
         });
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('User blocked successfully')),
@@ -632,11 +641,12 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
               children: [
                 const Text('Select a reason:'),
                 ...reasons.map((reason) => RadioListTile<String>(
-                  title: Text(reason),
-                  value: reason,
-                  groupValue: selectedReason,
-                  onChanged: (value) => setDialogState(() => selectedReason = value),
-                )),
+                      title: Text(reason),
+                      value: reason,
+                      groupValue: selectedReason,
+                      onChanged: (value) =>
+                          setDialogState(() => selectedReason = value),
+                    )),
                 const SizedBox(height: 16),
                 TextField(
                   controller: detailsController,
@@ -680,7 +690,9 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('User reported. Thank you for helping keep Nandigram safe.')),
+            const SnackBar(
+                content: Text(
+                    'User reported. Thank you for helping keep Nandigram safe.')),
           );
         }
       } catch (e) {
@@ -767,7 +779,9 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
       context,
       MaterialPageRoute(
         builder: (context) => ForwardMessageScreen(
-          messages: _messages.where((m) => _selectedMessages.contains(m.messageId)).toList(),
+          messages: _messages
+              .where((m) => _selectedMessages.contains(m.messageId))
+              .toList(),
         ),
       ),
     ).then((_) {
@@ -784,39 +798,50 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
         children: [
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF6F00)))
+                ? const Center(
+                    child: CircularProgressIndicator(color: Color(0xFFFF6F00)))
                 : _messages.isEmpty
                     ? _buildEmptyState()
                     : ListView.builder(
                         controller: _scrollController,
-                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 8, horizontal: 4),
                         itemCount: _messages.length,
                         itemBuilder: (context, index) {
                           final message = _messages[index];
-                          
+
                           if (_searchQuery.isNotEmpty) {
-                            if (message.content == null || 
-                                !message.content!.toLowerCase().contains(_searchQuery.toLowerCase())) {
+                            if (message.content == null ||
+                                !message.content!
+                                    .toLowerCase()
+                                    .contains(_searchQuery.toLowerCase())) {
                               return const SizedBox.shrink();
                             }
                           }
 
-                          final isMe = message.senderId == _supabase.auth.currentUser?.id;
-                          final showAvatar = widget.chatType != ChatType.private &&
-                              (index == _messages.length - 1 ||
-                                  _messages[index + 1].senderId != message.senderId);
+                          final isMe = message.senderId ==
+                              _supabase.auth.currentUser?.id;
+                          final showAvatar =
+                              widget.chatType != ChatType.private &&
+                                  (index == _messages.length - 1 ||
+                                      _messages[index + 1].senderId !=
+                                          message.senderId);
 
                           return MessageBubble(
                             message: message,
                             isMe: isMe,
                             showAvatar: showAvatar,
-                            isSelected: _selectedMessages.contains(message.messageId),
+                            isSelected:
+                                _selectedMessages.contains(message.messageId),
                             isSelectionMode: _isSelectionMode,
-                            onLongPress: () => _startSelectionMode(message.messageId),
-                            onTap: _isSelectionMode 
-                                ? () => _toggleMessageSelection(message.messageId)
+                            onLongPress: () =>
+                                _startSelectionMode(message.messageId),
+                            onTap: _isSelectionMode
+                                ? () =>
+                                    _toggleMessageSelection(message.messageId)
                                 : null,
-                            onReply: () => setState(() => _replyToMessage = message),
+                            onReply: () =>
+                                setState(() => _replyToMessage = message),
                             onEdit: () {
                               setState(() {
                                 _editingMessage = message;
@@ -831,50 +856,16 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
                         },
                       ),
           ),
-
           if (_replyToMessage != null) _buildReplyPreview(),
           if (_editingMessage != null) _buildEditPreview(),
-
           _buildMessageInput(),
-
           if (_showEmojiPicker)
             SizedBox(
               height: 250,
               child: EmojiPicker(
                 onEmojiSelected: (category, emoji) => _onEmojiSelected(emoji),
-                config: Config(
+                config: const Config(
                   checkPlatformCompatibility: true,
-                  emojiViewConfig: EmojiViewConfig(
-                    columns: 7,
-                    emojiSizeMax: 32,
-                    verticalSpacing: 0,
-                    horizontalSpacing: 0,
-                    gridPadding: EdgeInsets.zero,
-                    recentsLimit: 28,
-                    replaceEmojiOnLimitExceed: false,
-                    noRecents: const Text(
-                      'No Recents',
-                      style: TextStyle(fontSize: 20, color: Colors.black26),
-                      textAlign: TextAlign.center,
-                    ),
-                    loadingIndicator: const SizedBox.shrink(),
-                    buttonMode: ButtonMode.MATERIAL,
-                  ),
-                  categoryViewConfig: const CategoryViewConfig(
-                    initCategory: Category.RECENT,
-                    indicatorColor: Color(0xFFFF6F00),
-                    iconColor: Colors.grey,
-                    iconColorSelected: Color(0xFFFF6F00),
-                    backspaceColor: Color(0xFFFF6F00),
-                    tabIndicatorAnimDuration: kTabScrollDuration,
-                    categoryIcons: CategoryIcons(),
-                  ),
-                  skinToneConfig: const SkinToneConfig(
-                    enabled: true,
-                    dialogBackgroundColor: Colors.white,
-                    indicatorColor: Colors.grey,
-                  ),
-                  bottomActionBarConfig: const BottomActionBarConfig(enabled: false),
                 ),
               ),
             ),
@@ -903,11 +894,13 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
             )
           : InkWell(
               onTap: () {
-                if (widget.chatType == ChatType.private && widget.otherUserId.isNotEmpty) {
+                if (widget.chatType == ChatType.private &&
+                    widget.otherUserId.isNotEmpty) {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => UserProfileScreen(userId: widget.otherUserId),
+                      builder: (context) =>
+                          UserProfileScreen(userId: widget.otherUserId),
                     ),
                   );
                 }
@@ -932,7 +925,8 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
                       children: [
                         Text(
                           widget.chatName,
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w600),
                           overflow: TextOverflow.ellipsis,
                         ),
                         if (widget.chatType == ChatType.private)
@@ -994,9 +988,11 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
         children: [
           Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey[400]),
           const SizedBox(height: 16),
-          const Text('No messages yet', style: TextStyle(fontSize: 16, color: Colors.grey)),
+          const Text('No messages yet',
+              style: TextStyle(fontSize: 16, color: Colors.grey)),
           const SizedBox(height: 8),
-          const Text('Send your first message', style: TextStyle(fontSize: 14, color: Colors.grey)),
+          const Text('Send your first message',
+              style: TextStyle(fontSize: 14, color: Colors.grey)),
         ],
       ),
     );
@@ -1019,7 +1015,10 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
               children: [
                 Text(
                   _replyToMessage!.senderName ?? 'Unknown',
-                  style: const TextStyle(color: Color(0xFFFF6F00), fontWeight: FontWeight.w600, fontSize: 13),
+                  style: const TextStyle(
+                      color: Color(0xFFFF6F00),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -1112,7 +1111,8 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
                 decoration: const InputDecoration(
                   hintText: 'Message',
                   border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 ),
                 maxLines: null,
                 textInputAction: TextInputAction.newline,
@@ -1163,50 +1163,50 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
             ),
           const SizedBox(width: 4),
           GestureDetector(
-  onTap: _isSending ? null : () => _sendMessage(),
-  onLongPress: _isSending
-      ? null
-      : () async {
-          if (_messageController.text.trim().isNotEmpty) {
-            await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ScheduleMessageScreen(
-                  chatId: widget.chatId,
-                  chatName: widget.chatName,
-                  initialMessage: _messageController.text.trim(),
-                ),
+            onTap: _isSending ? null : () => _sendMessage(),
+            onLongPress: _isSending
+                ? null
+                : () async {
+                    if (_messageController.text.trim().isNotEmpty) {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ScheduleMessageScreen(
+                            chatId: widget.chatId,
+                            chatName: widget.chatName,
+                            initialMessage: _messageController.text.trim(),
+                          ),
+                        ),
+                      );
+                      _messageController.clear();
+                      _loadScheduledMessagesCount();
+                    }
+                  },
+            child: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: _isSending ? Colors.grey : const Color(0xFFFF6F00),
+                shape: BoxShape.circle,
               ),
-            );
-            _messageController.clear();
-            _loadScheduledMessagesCount();
-          }
-        },
-  child: Container(
-    width: 48,
-    height: 48,
-    decoration: BoxDecoration(
-      color: _isSending ? Colors.grey : const Color(0xFFFF6F00),
-      shape: BoxShape.circle,
-    ),
-    child: Center(
-      child: _isSending
-          ? const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                color: Colors.white,
-                strokeWidth: 2,
+              child: Center(
+                child: _isSending
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : Icon(
+                        _editingMessage != null ? Icons.check : Icons.send,
+                        color: Colors.white,
+                        size: 20,
+                      ),
               ),
-            )
-          : Icon(
-              _editingMessage != null ? Icons.check : Icons.send,
-              color: Colors.white,
-              size: 20,
             ),
-    ),
-  ),
-),
+          ),
         ],
       ),
     );
@@ -1229,14 +1229,18 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
               backgroundColor: Colors.grey[300],
               child: Text(
                 widget.chatName[0].toUpperCase(),
-                style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                style:
+                    const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
               ),
             ),
             const SizedBox(height: 16),
-            Text(widget.chatName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            Text(widget.chatName,
+                style:
+                    const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             if (widget.chatType == ChatType.private)
-              Text(_getOnlineStatus(), style: const TextStyle(fontSize: 14, color: Colors.grey)),
+              Text(_getOnlineStatus(),
+                  style: const TextStyle(fontSize: 14, color: Colors.grey)),
             const SizedBox(height: 24),
             ListTile(
               leading: const Icon(Icons.notifications),
@@ -1254,7 +1258,8 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
             if (widget.chatType == ChatType.private) ...[
               ListTile(
                 leading: const Icon(Icons.block, color: Colors.red),
-                title: const Text('Block User', style: TextStyle(color: Colors.red)),
+                title: const Text('Block User',
+                    style: TextStyle(color: Colors.red)),
                 onTap: () {
                   Navigator.pop(context);
                   _blockUser();
@@ -1262,7 +1267,8 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
               ),
               ListTile(
                 leading: const Icon(Icons.report, color: Colors.red),
-                title: const Text('Report User', style: TextStyle(color: Colors.red)),
+                title: const Text('Report User',
+                    style: TextStyle(color: Colors.red)),
                 onTap: () {
                   Navigator.pop(context);
                   _reportUser();
@@ -1319,13 +1325,15 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
               ),
               ListTile(
                 leading: const Icon(Icons.delete, color: Colors.red),
-                title: const Text('Clear History', style: TextStyle(color: Colors.red)),
+                title: const Text('Clear History',
+                    style: TextStyle(color: Colors.red)),
                 onTap: () => Navigator.pop(context),
               ),
               if (widget.chatType == ChatType.private) ...[
                 ListTile(
                   leading: const Icon(Icons.block, color: Colors.red),
-                  title: const Text('Block User', style: TextStyle(color: Colors.red)),
+                  title: const Text('Block User',
+                      style: TextStyle(color: Colors.red)),
                   onTap: () {
                     Navigator.pop(context);
                     _blockUser();
@@ -1333,7 +1341,8 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
                 ),
                 ListTile(
                   leading: const Icon(Icons.report, color: Colors.red),
-                  title: const Text('Report User', style: TextStyle(color: Colors.red)),
+                  title: const Text('Report User',
+                      style: TextStyle(color: Colors.red)),
                   onTap: () {
                     Navigator.pop(context);
                     _reportUser();
@@ -1369,7 +1378,8 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
             if (message.senderId == _supabase.auth.currentUser?.id)
               ListTile(
                 leading: const Icon(Icons.delete, color: Colors.red),
-                title: const Text('Delete for Everyone', style: TextStyle(color: Colors.red)),
+                title: const Text('Delete for Everyone',
+                    style: TextStyle(color: Colors.red)),
                 onTap: () {
                   Navigator.pop(context);
                   _deleteMessage(message, forEveryone: true);
@@ -1381,7 +1391,8 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
     );
   }
 
-  Future<void> _deleteMessage(Message message, {required bool forEveryone}) async {
+  Future<void> _deleteMessage(Message message,
+      {required bool forEveryone}) async {
     try {
       if (forEveryone) {
         // Delete for everyone - remove from database
@@ -1413,7 +1424,7 @@ class _ChatWindowScreenState extends State<ChatWindowScreen> {
     try {
       final userId = _supabase.auth.currentUser?.id;
       if (userId == null) return;
-      
+
       // Check if already reacted with this emoji
       final existingReaction = await _supabase
           .from('ngm_message_reactions')
