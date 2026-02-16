@@ -1,131 +1,131 @@
-// Chat Types Enum
-enum ChatType {
-  private,
-  group,
-  channel,
-}
+import 'package:hive/hive.dart';
 
-// Chat Item Model - For chat list
-class ChatItem {
+part 'chat_model.g.dart';
+
+@HiveType(typeId: 2)
+class ChatModel {
+  @HiveField(0)
   final String chatId;
-  final ChatType chatType;
-  final String name;
-  final String? avatarUrl;
-  final String lastMessage;
-  final DateTime lastMessageTime;
+  
+  @HiveField(1)
+  final String chatType; // private, group, channel
+  
+  @HiveField(2)
+  final String? user1Id;
+  
+  @HiveField(3)
+  final String? user2Id;
+  
+  @HiveField(4)
+  final DateTime createdAt;
+  
+  @HiveField(5)
+  final DateTime updatedAt;
+  
+  @HiveField(6)
+  final DateTime? lastMessageAt;
+  
+  @HiveField(7)
+  final int? autoDeleteDays;
+  
+  @HiveField(8)
+  final String? lastMessageBy;
+  
+  @HiveField(9)
   final int unreadCount;
-  final bool isPinned;
+  
+  @HiveField(10)
   final bool isMuted;
-  final bool? isOnline;
-  final DateTime? lastSeen;
+  
+  @HiveField(11)
+  final bool isArchived;
+  
+  @HiveField(12)
+  final bool isPinned;
 
-  ChatItem({
+  ChatModel({
     required this.chatId,
     required this.chatType,
-    required this.name,
-    this.avatarUrl,
-    required this.lastMessage,
-    required this.lastMessageTime,
-    this.unreadCount = 0,
-    this.isPinned = false,
-    this.isMuted = false,
-    this.isOnline,
-    this.lastSeen,
-  });
-}
-
-// Message Model - For individual messages
-class Message {
-  final String messageId;
-  final String chatId;
-  final String senderId;
-  final String? senderName;
-  final String? senderAvatar;
-  final String messageType;
-  final String? content;
-  final String? mediaUrl;
-  final String? replyToMessageId;
-  final bool isForwarded;
-  final bool isEdited;
-  final bool isDeleted;
-  final DateTime createdAt;
-  final DateTime? editedAt;
-  final bool isDelivered;
-  final bool isRead;
-
-  Message({
-    required this.messageId,
-    required this.chatId,
-    required this.senderId,
-    this.senderName,
-    this.senderAvatar,
-    required this.messageType,
-    this.content,
-    this.mediaUrl,
-    this.replyToMessageId,
-    this.isForwarded = false,
-    this.isEdited = false,
-    this.isDeleted = false,
+    this.user1Id,
+    this.user2Id,
     required this.createdAt,
-    this.editedAt,
-    this.isDelivered = false,
-    this.isRead = false,
+    required this.updatedAt,
+    this.lastMessageAt,
+    this.autoDeleteDays,
+    this.lastMessageBy,
+    this.unreadCount = 0,
+    this.isMuted = false,
+    this.isArchived = false,
+    this.isPinned = false,
   });
 
-  Message copyWith({
-    String? messageId,
-    String? chatId,
-    String? senderId,
-    String? senderName,
-    String? senderAvatar,
-    String? messageType,
-    String? content,
-    String? mediaUrl,
-    String? replyToMessageId,
-    bool? isForwarded,
-    bool? isEdited,
-    bool? isDeleted,
-    DateTime? createdAt,
-    DateTime? editedAt,
-    bool? isDelivered,
-    bool? isRead,
-  }) {
-    return Message(
-      messageId: messageId ?? this.messageId,
-      chatId: chatId ?? this.chatId,
-      senderId: senderId ?? this.senderId,
-      senderName: senderName ?? this.senderName,
-      senderAvatar: senderAvatar ?? this.senderAvatar,
-      messageType: messageType ?? this.messageType,
-      content: content ?? this.content,
-      mediaUrl: mediaUrl ?? this.mediaUrl,
-      replyToMessageId: replyToMessageId ?? this.replyToMessageId,
-      isForwarded: isForwarded ?? this.isForwarded,
-      isEdited: isEdited ?? this.isEdited,
-      isDeleted: isDeleted ?? this.isDeleted,
-      createdAt: createdAt ?? this.createdAt,
-      editedAt: editedAt ?? this.editedAt,
-      isDelivered: isDelivered ?? this.isDelivered,
-      isRead: isRead ?? this.isRead,
+  factory ChatModel.fromJson(Map<String, dynamic> json) {
+    return ChatModel(
+      chatId: json['chat_id'],
+      chatType: json['chat_type'],
+      user1Id: json['user1_id'],
+      user2Id: json['user2_id'],
+      createdAt: DateTime.parse(json['created_at']),
+      updatedAt: DateTime.parse(json['updated_at']),
+      lastMessageAt: json['last_message_at'] != null 
+          ? DateTime.parse(json['last_message_at']) 
+          : null,
+      autoDeleteDays: json['auto_delete_days'],
+      lastMessageBy: json['last_message_by'],
+      unreadCount: json['unread_count'] ?? 0,
+      isMuted: json['is_muted'] ?? false,
+      isArchived: json['is_archived'] ?? false,
+      isPinned: json['is_pinned'] ?? false,
     );
   }
-}
 
-// Contact Model - For contacts list
-class Contact {
-  final String userId;
-  final String name;
-  final String? username;
-  final String? profilePictureUrl;
-  final bool isOnline;
-  final String? phoneNumber;
+  Map<String, dynamic> toJson() {
+    return {
+      'chat_id': chatId,
+      'chat_type': chatType,
+      'user1_id': user1Id,
+      'user2_id': user2Id,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+      'last_message_at': lastMessageAt?.toIso8601String(),
+      'auto_delete_days': autoDeleteDays,
+      'last_message_by': lastMessageBy,
+      'unread_count': unreadCount,
+      'is_muted': isMuted,
+      'is_archived': isArchived,
+      'is_pinned': isPinned,
+    };
+  }
 
-  Contact({
-    required this.userId,
-    required this.name,
-    this.username,
-    this.profilePictureUrl,
-    this.isOnline = false,
-    this.phoneNumber,
-  });
+  ChatModel copyWith({
+    String? chatId,
+    String? chatType,
+    String? user1Id,
+    String? user2Id,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    DateTime? lastMessageAt,
+    int? autoDeleteDays,
+    String? lastMessageBy,
+    int? unreadCount,
+    bool? isMuted,
+    bool? isArchived,
+    bool? isPinned,
+  }) {
+    return ChatModel(
+      chatId: chatId ?? this.chatId,
+      chatType: chatType ?? this.chatType,
+      user1Id: user1Id ?? this.user1Id,
+      user2Id: user2Id ?? this.user2Id,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      lastMessageAt: lastMessageAt ?? this.lastMessageAt,
+      autoDeleteDays: autoDeleteDays ?? this.autoDeleteDays,
+      lastMessageBy: lastMessageBy ?? this.lastMessageBy,
+      unreadCount: unreadCount ?? this.unreadCount,
+      isMuted: isMuted ?? this.isMuted,
+      isArchived: isArchived ?? this.isArchived,
+      isPinned: isPinned ?? this.isPinned,
+    );
+  }
 }

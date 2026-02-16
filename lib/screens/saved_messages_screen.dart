@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/chat_model.dart';
 import '../widgets/message_bubble.dart';
+import '../models/message_model.dart';
 
 class SavedMessagesScreen extends StatefulWidget {
   const SavedMessagesScreen({super.key});
@@ -84,7 +85,7 @@ class _SavedMessagesScreenState extends State<SavedMessagesScreen> {
           content: item['content'],
           createdAt: DateTime.parse(item['created_at']),
           isDelivered: true,
-          isRead: true,
+          isReadByAll: true,
         ));
       }
 
@@ -210,8 +211,7 @@ class _SavedMessagesScreenState extends State<SavedMessagesScreen> {
                             onEdit: () {},  // FIXED: Added missing onEdit
                             onDelete: () => _deleteMessage(message),
                             onForward: () {},
-                            onReact: (emoji) {},  // FIXED: Added missing onReact
-                            onJumpToReply: (replyId) {},  // FIXED: Added missing onJumpToReply
+                            //onJumpToReply: (replyId) {},  // FIXED: Added missing onJumpToReply
                           );
                         },
                       ),

@@ -1,1467 +1,850 @@
-import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
-import '../models/chat_model.dart';
-import '../widgets/message_bubble.dart';
 import 'dart:async';
-import 'dart:io';
-import 'user_profile_screen.dart';
-import 'schedule_message_screen.dart';
-import 'forward_message_screen.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../models/message_model.dart';
+import '../models/user_model.dart';
+import '../models/chat_model.dart';
+import '../services/chat_service.dart';
+import '../services/local_storage_service.dart';
+import '../utils/date_util.dart';
+import '../utils/media_util.dart';
+import '../widgets/message_bubble.dart';
+import '../widgets/chat_input_widget.dart';
+import '../widgets/divider_widgets.dart';
 
 class ChatWindowScreen extends StatefulWidget {
   final String chatId;
-  final String chatName;
-  final String otherUserId; // For private chats
-  final ChatType chatType;
+  final String otherUserId;
 
   const ChatWindowScreen({
-    super.key,
+    Key? key,
     required this.chatId,
-    required this.chatName,
-    required this.chatType,
-    this.otherUserId = '',
-  });
+    required this.otherUserId,
+  }) : super(key: key);
 
   @override
   State<ChatWindowScreen> createState() => _ChatWindowScreenState();
 }
 
-class _ChatWindowScreenState extends State<ChatWindowScreen> {
-  final _supabase = Supabase.instance.client;
-  final _messageController = TextEditingController();
-  final _scrollController = ScrollController();
-  final _searchController = TextEditingController();
-  final List<Message> _messages = [];
-  final _imagePicker = ImagePicker();
-  final Set<String> _selectedMessages = {};
-
-  bool _isLoading = true;
-  bool _isTyping = false;
-  bool _isSending = false;
-  bool _isSearching = false;
-  bool _showEmojiPicker = false;
-  bool _isUserOnline = false;
-  bool _isSelectionMode = false;
-  DateTime? _userLastSeen;
+class _ChatWindowScreenState extends State<ChatWindowScreen> with WidgetsBindingObserver {
+  final ChatService _chatService = ChatService();
+  final ScrollController _scrollController = ScrollController();
+  
+  List<Message> _messages = [];
+  UserModel? _otherUser;
+  ChatModel? _currentChat;
   Message? _replyToMessage;
-  Message? _editingMessage;
-  Timer? _typingTimer;
-  Timer? _onlineStatusTimer;
+  Message? _pinnedMessage;
+  
+  bool _showScrollToBottom = false;
+  int _unreadCount = 0;
+  bool _isSearching = false;
   String _searchQuery = '';
-  RealtimeChannel? _messageSubscription;
-  int _scheduledMessagesCount = 0;
+  bool _isTyping = false;
+  Timer? _typingTimer;
+  Timer? _statusRefreshTimer;
+  
+  StreamSubscription? _messageSubscription;
 
   @override
   void initState() {
     super.initState();
-    _loadMessages();
-    _setupRealtimeSubscription();
-    _markMessagesAsRead();
-    _loadScheduledMessagesCount();
-    if (widget.chatType == ChatType.private && widget.otherUserId.isNotEmpty) {
-      _startOnlineStatusCheck();
-    }
+    WidgetsBinding.instance.addObserver(this);
+    _initializeChat();
+    _scrollController.addListener(_onScroll);
+    _chatService.updateOnlineStatus(true);
+    
+    // Refresh user status every 30 seconds
+    _statusRefreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      _refreshUserStatus();
+    });
   }
 
   @override
   void dispose() {
-    _messageController.dispose();
+    WidgetsBinding.instance.removeObserver(this);
     _scrollController.dispose();
-    _searchController.dispose();
+    _messageSubscription?.cancel();
     _typingTimer?.cancel();
-    _onlineStatusTimer?.cancel();
-    _messageSubscription?.unsubscribe();
+    _statusRefreshTimer?.cancel();
+    _chatService.updateOnlineStatus(false);
     super.dispose();
   }
 
-  Future<void> _loadScheduledMessagesCount() async {
-    try {
-      final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) return;
-
-      final response = await _supabase
-          .from('ngm_scheduled_messages')
-          .select('message_id')
-          .eq('chat_id', widget.chatId)
-          .eq('sender_id', userId)
-          .eq('is_sent', false);
-
-      if (mounted) {
-        setState(() {
-          _scheduledMessagesCount = (response as List).length;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading scheduled messages count: $e');
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _chatService.updateOnlineStatus(true);
+      _refreshUserStatus();
+    } else if (state == AppLifecycleState.paused) {
+      _chatService.updateOnlineStatus(false);
     }
   }
 
-  // Online Status Check
-  void _startOnlineStatusCheck() {
-    _checkOnlineStatus();
-    _onlineStatusTimer = Timer.periodic(const Duration(seconds: 10), (_) {
-      _checkOnlineStatus();
-    });
+  Future<void> _initializeChat() async {
+    // Load local messages first for instant display
+    _loadLocalMessages();
+    
+    // Fetch other user info
+    _otherUser = await _chatService.getUserInfo(widget.otherUserId);
+    
+    // Fetch chat info
+    _currentChat = await _chatService.getChatInfo(widget.chatId);
+    
+    // Fetch messages from server
+    await _fetchMessages();
+    
+    // Subscribe to real-time updates
+    _subscribeToMessages();
+    
+    // Mark messages as read
+    _markMessagesAsRead();
+    
+    if (mounted) {
+      setState(() {});
+    }
   }
 
-  Future<void> _checkOnlineStatus() async {
-    try {
-      final userData = await _supabase
-          .from('ngm_users')
-          .select('is_online, last_seen')
-          .eq('user_id', widget.otherUserId)
-          .single();
-
+  Future<void> _refreshUserStatus() async {
+    final updatedUser = await _chatService.getUserInfo(widget.otherUserId);
+    if (mounted && updatedUser != null) {
       setState(() {
-        _isUserOnline = userData['is_online'] ?? false;
-        _userLastSeen = userData['last_seen'] != null
-            ? DateTime.parse(userData['last_seen'])
-            : null;
+        _otherUser = updatedUser;
       });
-    } catch (e) {
-      debugPrint('Error checking online status: $e');
     }
   }
 
-  String _getOnlineStatus() {
-    if (_isUserOnline) return 'online';
-    if (_userLastSeen != null) {
-      final diff = DateTime.now().difference(_userLastSeen!);
-      if (diff.inMinutes < 1) return 'last seen just now';
-      if (diff.inMinutes < 60) return 'last seen ${diff.inMinutes}m ago';
-      if (diff.inHours < 24) return 'last seen ${diff.inHours}h ago';
-      if (diff.inDays < 7) return 'last seen ${diff.inDays}d ago';
-      return 'last seen recently';
-    }
-    return 'offline';
-  }
-
-  Future<void> _loadMessages() async {
-    try {
-      final response = await _supabase
-          .from('ngm_messages')
-          .select()
-          .eq('chat_id', widget.chatId)
-          .eq('is_deleted', false)
-          .order('created_at', ascending: true);
-
-      final List<Message> messages = [];
-      for (var item in response as List) {
-        final senderInfo = await _supabase
-            .from('ngm_users')
-            .select('full_name, username, profile_picture_url')
-            .eq('user_id', item['sender_id'])
-            .maybeSingle();
-
-        messages.add(Message(
-          messageId: item['message_id'],
-          chatId: item['chat_id'],
-          senderId: item['sender_id'],
-          senderName:
-              senderInfo?['full_name'] ?? senderInfo?['username'] ?? 'Unknown',
-          senderAvatar: senderInfo?['profile_picture_url'],
-          messageType: item['message_type'],
-          content: item['content'],
-          mediaUrl: item['media_url'],
-          replyToMessageId: item['reply_to_message_id'],
-          isForwarded: item['is_forwarded'] ?? false,
-          isEdited: item['is_edited'] ?? false,
-          isDeleted: item['is_deleted'] ?? false,
-          createdAt: DateTime.parse(item['created_at']),
-          editedAt: item['edited_at'] != null
-              ? DateTime.parse(item['edited_at'])
-              : null,
-          isDelivered: item['is_delivered'] ?? false,
-          isRead: item['is_read_by_all'] ?? false,
-        ));
-      }
-
-      if (mounted) {
-        setState(() {
-          _messages.clear();
-          _messages.addAll(messages);
-          _isLoading = false;
-        });
-        _scrollToBottom();
-      }
-    } catch (e) {
-      debugPrint('Error loading messages: $e');
-      if (mounted) setState(() => _isLoading = false);
+  void _loadLocalMessages() {
+    _messages = LocalStorageService().getMessagesByChat(widget.chatId);
+    _findPinnedMessage();
+    if (mounted) {
+      setState(() {});
     }
   }
 
-  void _setupRealtimeSubscription() {
-    _messageSubscription = _supabase
-        .channel('messages_${widget.chatId}')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.all,
-          schema: 'public',
-          table: 'ngm_messages',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'chat_id',
-            value: widget.chatId,
-          ),
-          callback: (payload) async {
-            if (payload.eventType == PostgresChangeEvent.insert) {
-              await _handleNewMessage(payload.newRecord);
-            } else if (payload.eventType == PostgresChangeEvent.update) {
-              _handleMessageUpdate(payload.newRecord);
-            } else if (payload.eventType == PostgresChangeEvent.delete) {
-              _handleMessageDelete(payload.oldRecord['message_id']);
+  Future<void> _fetchMessages() async {
+    final messages = await _chatService.fetchMessages(widget.chatId);
+    if (mounted) {
+      setState(() {
+        _messages = messages;
+        _findPinnedMessage();
+      });
+    }
+  }
+
+// Line ~88 પર _subscribeToMessages method ને replace કરો:
+
+void _subscribeToMessages() {
+  print('🔔 Setting up real-time subscription...');
+  
+  _messageSubscription = _chatService
+      .subscribeToMessages(widget.chatId)
+      .listen(
+        (newMessage) {
+          print('🔔 Message received in UI: ${newMessage.content}');
+          
+          // Check if message already exists
+          final exists = _messages.any((m) => m.messageId == newMessage.messageId);
+          
+          if (!exists && mounted) {
+            setState(() {
+              _messages.add(newMessage);
+              _messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+              _findPinnedMessage();
+            });
+            
+            // Save to local storage
+            LocalStorageService().saveMessage(newMessage);
+            
+            // Auto-scroll to bottom
+            Future.delayed(const Duration(milliseconds: 100), () {
+              if (_scrollController.hasClients) {
+                _scrollToBottom();
+              }
+            });
+            
+            // Mark as read if from other user
+            if (newMessage.senderId != _chatService.currentUserId) {
+              _chatService.markAsRead(newMessage.messageId);
             }
-          },
-        )
-        .subscribe();
-  }
-
-  Future<void> _handleNewMessage(Map<String, dynamic> record) async {
-    try {
-      final senderInfo = await _supabase
-          .from('ngm_users')
-          .select('full_name, username, profile_picture_url')
-          .eq('user_id', record['sender_id'])
-          .maybeSingle();
-
-      final newMessage = Message(
-        messageId: record['message_id'],
-        chatId: record['chat_id'],
-        senderId: record['sender_id'],
-        senderName:
-            senderInfo?['full_name'] ?? senderInfo?['username'] ?? 'Unknown',
-        senderAvatar: senderInfo?['profile_picture_url'],
-        messageType: record['message_type'],
-        content: record['content'],
-        mediaUrl: record['media_url'],
-        replyToMessageId: record['reply_to_message_id'],
-        isForwarded: record['is_forwarded'] ?? false,
-        isEdited: record['is_edited'] ?? false,
-        isDeleted: record['is_deleted'] ?? false,
-        createdAt: DateTime.parse(record['created_at']),
-        isDelivered: record['is_delivered'] ?? false,
-        isRead: record['is_read_by_all'] ?? false,
+          }
+        },
+        onError: (error) {
+          print('❌ Real-time error: $error');
+        },
       );
+}
 
-      if (mounted) {
-        setState(() => _messages.add(newMessage));
-        _scrollToBottom();
-        _markMessagesAsRead();
-      }
-    } catch (e) {
-      debugPrint('Error handling new message: $e');
-    }
-  }
-
-  void _handleMessageUpdate(Map<String, dynamic> record) {
-    if (mounted) {
-      setState(() {
-        final index =
-            _messages.indexWhere((m) => m.messageId == record['message_id']);
-        if (index != -1) {
-          _messages[index] = _messages[index].copyWith(
-            content: record['content'],
-            isEdited: record['is_edited'] ?? false,
-            editedAt: record['edited_at'] != null
-                ? DateTime.parse(record['edited_at'])
-                : null,
-            isDeleted: record['is_deleted'] ?? false,
-          );
-        }
-      });
-    }
-  }
-
-  void _handleMessageDelete(String messageId) {
-    if (mounted) {
-      setState(() {
-        _messages.removeWhere((m) => m.messageId == messageId);
-      });
-    }
-  }
-
-  Future<void> _markMessagesAsRead() async {
+  void _findPinnedMessage() {
     try {
-      final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) return;
-
-      await _supabase
-          .from('ngm_chat_participants')
-          .update({
-            'unread_count': 0,
-            'last_read_message_id':
-                _messages.isNotEmpty ? _messages.last.messageId : null,
-          })
-          .eq('chat_id', widget.chatId)
-          .eq('user_id', userId);
+      _pinnedMessage = _messages.firstWhere((msg) => msg.isPinned);
     } catch (e) {
-      debugPrint('Error marking messages as read: $e');
+      _pinnedMessage = null;
     }
   }
 
-  void _scrollToBottom() {
+  void _markMessagesAsRead() {
+    for (final message in _messages) {
+      if (message.senderId != _chatService.currentUserId && !message.isReadByAll) {
+        _chatService.markAsRead(message.messageId);
+      }
+    }
+  }
+
+  void _onScroll() {
     if (_scrollController.hasClients) {
-      Future.delayed(const Duration(milliseconds: 100), () {
+      final position = _scrollController.position;
+      final showButton = position.maxScrollExtent - position.pixels > 200;
+      
+      if (showButton != _showScrollToBottom) {
+        setState(() => _showScrollToBottom = showButton);
+      }
+    }
+  }
+
+  void _scrollToBottom({bool animated = true}) {
+    if (_scrollController.hasClients) {
+      if (animated) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
-      });
+      } else {
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      }
     }
   }
 
-  Future<void> _sendMessage({String? mediaUrl, String? mediaType}) async {
-    final text = _messageController.text.trim();
-    if (text.isEmpty && mediaUrl == null) return;
-    if (_isSending) return;
-
-    setState(() => _isSending = true);
-
-    try {
-      final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) return;
-
-      // Check if editing
-      if (_editingMessage != null) {
-        await _updateMessage(text);
-        return;
-      }
-
-      final messageData = {
-        'chat_id': widget.chatId,
-        'sender_id': userId,
-        'message_type': mediaUrl != null ? (mediaType ?? 'image') : 'text',
-        'content': text.isEmpty ? null : text,
-        'reply_to_message_id': _replyToMessage?.messageId,
-        'created_at': DateTime.now().toIso8601String(),
-      };
-
-      // Only add media_url if it's not null
-      if (mediaUrl != null) {
-        messageData['media_url'] = mediaUrl;
-      }
-
-      await _supabase.from('ngm_messages').insert(messageData);
-
-      await _supabase
-          .from('ngm_chats')
-          .update({'last_message_at': DateTime.now().toIso8601String()}).eq(
-              'chat_id', widget.chatId);
-
-      _messageController.clear();
+  Future<void> _sendMessage(String content, String type, {String? mediaPath}) async {
+    String? mediaUrl;
+    
+    // Upload media if provided
+    if (mediaPath != null) {
+      // TODO: Implement media upload to storage
+      mediaUrl = mediaPath; // For now, use local path
+    }
+    
+    final message = await _chatService.sendMessage(
+      chatId: widget.chatId,
+      messageType: type,
+      content: content.isNotEmpty ? content : null,
+      mediaUrl: mediaUrl,
+      replyToMessageId: _replyToMessage?.messageId,
+    );
+    
+    if (message != null) {
       setState(() {
+        _messages.add(message);
         _replyToMessage = null;
-        _isSending = false;
       });
-    } catch (e) {
-      debugPrint('Error sending message: $e');
-      setState(() => _isSending = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to send message: $e')),
-        );
-      }
+      
+      // Scroll to bottom
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToBottom();
+      });
     }
   }
 
-  Future<void> _updateMessage(String newContent) async {
-    try {
-      await _supabase.from('ngm_messages').update({
-        'content': newContent,
-        'is_edited': true,
-        'edited_at': DateTime.now().toIso8601String(),
-      }).eq('message_id', _editingMessage!.messageId);
-
-      _messageController.clear();
-      setState(() {
-        _editingMessage = null;
-        _isSending = false;
-      });
-    } catch (e) {
-      debugPrint('Error updating message: $e');
-      setState(() => _isSending = false);
+  Future<void> _scheduleMessage(DateTime scheduledTime, String content) async {
+    final success = await _chatService.scheduleMessage(
+      chatId: widget.chatId,
+      content: content,
+      scheduledFor: scheduledTime,
+    );
+    
+    if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Message scheduled successfully')),
+      );
     }
   }
 
-  void _showAttachmentOptions() {
+  void _onTypingChanged(bool isTyping) {
+    _typingTimer?.cancel();
+    
+    if (isTyping) {
+      _chatService.updateTypingStatus(widget.chatId, true);
+      _typingTimer = Timer(const Duration(seconds: 3), () {
+        _chatService.updateTypingStatus(widget.chatId, false);
+      });
+    } else {
+      _chatService.updateTypingStatus(widget.chatId, false);
+    }
+  }
+
+  void _showMessageOptions(Message message) {
+    final isMe = message.senderId == _chatService.currentUserId;
+    
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.symmetric(vertical: 20),
+      builder: (context) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildAttachmentOption(
-              icon: Icons.photo_library,
-              title: 'Gallery',
-              color: Colors.purple,
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            
+            _buildOptionTile(
+              icon: Icons.reply,
+              label: 'Reply',
               onTap: () {
                 Navigator.pop(context);
-                _pickImageFromGallery();
+                setState(() => _replyToMessage = message);
               },
             ),
-            _buildAttachmentOption(
-              icon: Icons.camera_alt,
-              title: 'Camera',
-              color: Colors.pink,
+            
+            _buildOptionTile(
+              icon: Icons.copy,
+              label: 'Copy',
               onTap: () {
                 Navigator.pop(context);
-                _takePhoto();
+                if (message.content != null) {
+                  Clipboard.setData(ClipboardData(text: message.content!));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Copied to clipboard')),
+                  );
+                }
               },
             ),
-            _buildAttachmentOption(
-              icon: Icons.videocam,
-              title: 'Video',
+            
+            _buildOptionTile(
+              icon: Icons.forward,
+              label: 'Forward',
+              onTap: () {
+                Navigator.pop(context);
+                _showForwardDialog(message);
+              },
+            ),
+            
+            if (isMe)
+              _buildOptionTile(
+                icon: Icons.edit,
+                label: 'Edit',
+                onTap: () {
+                  Navigator.pop(context);
+                  _showEditDialog(message);
+                },
+              ),
+            
+            _buildOptionTile(
+              icon: message.isPinned ? Icons.push_pin_outlined : Icons.push_pin,
+              label: message.isPinned ? 'Unpin' : 'Pin',
+              onTap: () async {
+                Navigator.pop(context);
+                if (message.isPinned) {
+                  await _chatService.unpinMessage(message.messageId);
+                } else {
+                  await _chatService.pinMessage(message.messageId, widget.chatId);
+                }
+                _loadLocalMessages();
+              },
+            ),
+            
+            if (message.mediaUrl != null)
+              _buildOptionTile(
+                icon: Icons.download,
+                label: 'Save to Gallery',
+                onTap: () async {
+                  Navigator.pop(context);
+                  final success = message.messageType == 'image'
+                      ? await MediaUtil.saveImageToGallery(message.mediaUrl!)
+                      : await MediaUtil.saveVideoToGallery(message.mediaUrl!);
+                  
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(success
+                            ? 'Saved to gallery'
+                            : 'Failed to save'),
+                      ),
+                    );
+                  }
+                },
+              ),
+            
+            _buildOptionTile(
+              icon: Icons.delete_outline,
+              label: 'Delete for me',
               color: Colors.red,
-              onTap: () {
+              onTap: () async {
                 Navigator.pop(context);
-                _pickVideo();
+                await _chatService.deleteMessageForMe(message.messageId);
+                _loadLocalMessages();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Message deleted')),
+                  );
+                }
               },
             ),
-            _buildAttachmentOption(
-              icon: Icons.insert_drive_file,
-              title: 'Document',
-              color: Colors.blue,
-              onTap: () {
-                Navigator.pop(context);
-                _pickDocument();
-              },
-            ),
+            
+            if (isMe)
+              _buildOptionTile(
+                icon: Icons.delete,
+                label: 'Delete for everyone',
+                color: Colors.red,
+                onTap: () {
+                  Navigator.pop(context);
+                  _showDeleteConfirmation(message);
+                },
+              ),
+            
+            const SizedBox(height: 20),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildAttachmentOption({
+  Widget _buildOptionTile({
     required IconData icon,
-    required String title,
-    required Color color,
+    required String label,
     required VoidCallback onTap,
+    Color? color,
   }) {
     return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: color.withOpacity(0.1),
-        child: Icon(icon, color: color),
-      ),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+      leading: Icon(icon, color: color),
+      title: Text(label, style: TextStyle(color: color)),
       onTap: onTap,
     );
   }
 
-  Future<void> _pickImageFromGallery() async {
-    try {
-      final XFile? image =
-          await _imagePicker.pickImage(source: ImageSource.gallery);
-      if (image != null) {
-        await _uploadAndSendMedia(File(image.path), 'image');
-      }
-    } catch (e) {
-      debugPrint('Error picking image: $e');
-    }
-  }
-
-  Future<void> _takePhoto() async {
-    try {
-      final XFile? photo =
-          await _imagePicker.pickImage(source: ImageSource.camera);
-      if (photo != null) {
-        await _uploadAndSendMedia(File(photo.path), 'image');
-      }
-    } catch (e) {
-      debugPrint('Error taking photo: $e');
-    }
-  }
-
-  Future<void> _pickVideo() async {
-    try {
-      final XFile? video =
-          await _imagePicker.pickVideo(source: ImageSource.gallery);
-      if (video != null) {
-        await _uploadAndSendMedia(File(video.path), 'video');
-      }
-    } catch (e) {
-      debugPrint('Error picking video: $e');
-    }
-  }
-
-  Future<void> _pickDocument() async {
-    try {
-      final result = await FilePicker.platform.pickFiles();
-      if (result != null && result.files.single.path != null) {
-        await _uploadAndSendMedia(File(result.files.single.path!), 'document');
-      }
-    } catch (e) {
-      debugPrint('Error picking document: $e');
-    }
-  }
-
-  Future<void> _uploadAndSendMedia(File file, String type) async {
-    try {
-      setState(() => _isSending = true);
-
-      final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) return;
-
-      final fileName =
-          '${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
-      final filePath = 'chat-media/$userId/$fileName';
-
-      await _supabase.storage.from('nandigram-storage').upload(filePath, file);
-
-      final mediaUrl =
-          _supabase.storage.from('nandigram-storage').getPublicUrl(filePath);
-
-      await _sendMessage(mediaUrl: mediaUrl, mediaType: type);
-    } catch (e) {
-      debugPrint('Error uploading media: $e');
-      setState(() => _isSending = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to upload: $e')),
-        );
-      }
-    }
-  }
-
-  void _startSearch() {
-    setState(() => _isSearching = true);
-  }
-
-  void _cancelSearch() {
-    setState(() {
-      _isSearching = false;
-      _searchQuery = '';
-      _searchController.clear();
-    });
-  }
-
-  void _onTyping() {
-    if (!_isTyping) {
-      setState(() => _isTyping = true);
-    }
-
-    _typingTimer?.cancel();
-    _typingTimer = Timer(const Duration(seconds: 2), () {
-      setState(() => _isTyping = false);
-    });
-  }
-
-  void _onEmojiSelected(Emoji emoji) {
-    _messageController.text += emoji.emoji;
-    _onTyping();
-  }
-
-  void _toggleEmojiPicker() {
-    setState(() {
-      _showEmojiPicker = !_showEmojiPicker;
-      if (_showEmojiPicker) {
-        FocusScope.of(context).unfocus();
-      }
-    });
-  }
-
-  Future<void> _blockUser() async {
-    final confirm = await showDialog<bool>(
+  void _showEditDialog(Message message) {
+    final controller = TextEditingController(text: message.content);
+    
+    showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Block User'),
-        content: Text('Are you sure you want to block ${widget.chatName}?'),
+        title: const Text('Edit Message'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            labelText: 'Message',
+          ),
+          maxLines: 3,
+          autofocus: true,
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Block'),
+          ElevatedButton(
+            onPressed: () async {
+              final newContent = controller.text.trim();
+              if (newContent.isNotEmpty && newContent != message.content) {
+                await _chatService.editMessage(message.messageId, newContent);
+                _loadLocalMessages();
+              }
+              if (mounted) {
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Save'),
           ),
         ],
       ),
     );
-
-    if (confirm == true) {
-      try {
-        final userId = _supabase.auth.currentUser?.id;
-        if (userId == null) return;
-
-        await _supabase.from('ngm_blocked_users').insert({
-          'user_id': userId,
-          'blocked_user_id': widget.otherUserId,
-          'reason': 'User blocked from chat',
-          'created_at': DateTime.now().toIso8601String(),
-        });
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('User blocked successfully')),
-          );
-          Navigator.pop(context);
-        }
-      } catch (e) {
-        debugPrint('Error blocking user: $e');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error blocking user: $e')),
-          );
-        }
-      }
-    }
   }
 
-  Future<void> _reportUser() async {
-    final reasons = [
-      'Spam',
-      'Harassment',
-      'Inappropriate content',
-      'Fake account',
-      'Other',
-    ];
-
-    String? selectedReason;
-    final TextEditingController detailsController = TextEditingController();
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Report User'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Select a reason:'),
-                ...reasons.map((reason) => RadioListTile<String>(
-                      title: Text(reason),
-                      value: reason,
-                      groupValue: selectedReason,
-                      onChanged: (value) =>
-                          setDialogState(() => selectedReason = value),
-                    )),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: detailsController,
-                  decoration: const InputDecoration(
-                    labelText: 'Additional details (optional)',
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLines: 3,
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: selectedReason == null
-                  ? null
-                  : () => Navigator.pop(context, true),
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Report'),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (confirmed == true && selectedReason != null) {
-      try {
-        final userId = _supabase.auth.currentUser?.id;
-        await _supabase.from('ngm_user_reports').insert({
-          'reporter_user_id': userId,
-          'reported_user_id': widget.otherUserId,
-          'report_reason': selectedReason,
-          'report_details': detailsController.text,
-          'status': 'pending',
-          'created_at': DateTime.now().toIso8601String(),
-        });
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text(
-                    'User reported. Thank you for helping keep Nandigram safe.')),
-          );
-        }
-      } catch (e) {
-        debugPrint('Error reporting user: $e');
-      }
-    }
-  }
-
-  void _toggleMessageSelection(String messageId) {
-    setState(() {
-      if (_selectedMessages.contains(messageId)) {
-        _selectedMessages.remove(messageId);
-        if (_selectedMessages.isEmpty) {
-          _isSelectionMode = false;
-        }
-      } else {
-        _selectedMessages.add(messageId);
-      }
-    });
-  }
-
-  void _startSelectionMode(String messageId) {
-    setState(() {
-      _isSelectionMode = true;
-      _selectedMessages.add(messageId);
-    });
-  }
-
-  void _cancelSelection() {
-    setState(() {
-      _isSelectionMode = false;
-      _selectedMessages.clear();
-    });
-  }
-
-  void _deleteSelectedMessages() async {
-    final confirm = await showDialog<bool>(
+  void _showDeleteConfirmation(Message message) {
+    showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Messages'),
-        content: Text('Delete ${_selectedMessages.length} message(s)?'),
+        title: const Text('Delete Message?'),
+        content: const Text(
+          'This message will be deleted for everyone in this chat.',
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              await _chatService.deleteMessageForEveryone(message.messageId);
+              _loadLocalMessages();
+              if (mounted) {
+                Navigator.pop(context);
+              }
+            },
             child: const Text('Delete'),
           ),
         ],
       ),
     );
-
-    if (confirm == true) {
-      try {
-        for (final messageId in _selectedMessages) {
-          await _supabase
-              .from('ngm_messages')
-              .delete()
-              .eq('message_id', messageId);
-        }
-
-        setState(() {
-          _messages.removeWhere((m) => _selectedMessages.contains(m.messageId));
-          _selectedMessages.clear();
-          _isSelectionMode = false;
-        });
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Messages deleted')),
-          );
-        }
-      } catch (e) {
-        debugPrint('Error deleting messages: $e');
-      }
-    }
   }
 
-  void _forwardSelectedMessages() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ForwardMessageScreen(
-          messages: _messages
-              .where((m) => _selectedMessages.contains(m.messageId))
-              .toList(),
-        ),
-      ),
-    ).then((_) {
-      _cancelSelection();
-    });
+  void _showForwardDialog(Message message) {
+    // TODO: Implement forward screen with chat list
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Forward feature - coming soon')),
+    );
+  }
+
+  void _searchInChat() {
+    setState(() => _isSearching = !_isSearching);
+    if (!_isSearching) {
+      setState(() => _searchQuery = '');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFE5DDD5),
-      appBar: _isSelectionMode ? _buildSelectionAppBar() : _buildNormalAppBar(),
+      appBar: _buildAppBar(),
       body: Column(
         children: [
+          if (_pinnedMessage != null) _buildPinnedMessageBar(),
+          
           Expanded(
-            child: _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(color: Color(0xFFFF6F00)))
-                : _messages.isEmpty
-                    ? _buildEmptyState()
-                    : ListView.builder(
-                        controller: _scrollController,
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 8, horizontal: 4),
-                        itemCount: _messages.length,
-                        itemBuilder: (context, index) {
-                          final message = _messages[index];
-
-                          if (_searchQuery.isNotEmpty) {
-                            if (message.content == null ||
-                                !message.content!
-                                    .toLowerCase()
-                                    .contains(_searchQuery.toLowerCase())) {
-                              return const SizedBox.shrink();
-                            }
-                          }
-
-                          final isMe = message.senderId ==
-                              _supabase.auth.currentUser?.id;
-                          final showAvatar =
-                              widget.chatType != ChatType.private &&
-                                  (index == _messages.length - 1 ||
-                                      _messages[index + 1].senderId !=
-                                          message.senderId);
-
-                          return MessageBubble(
-                            message: message,
-                            isMe: isMe,
-                            showAvatar: showAvatar,
-                            isSelected:
-                                _selectedMessages.contains(message.messageId),
-                            isSelectionMode: _isSelectionMode,
-                            onLongPress: () =>
-                                _startSelectionMode(message.messageId),
-                            onTap: _isSelectionMode
-                                ? () =>
-                                    _toggleMessageSelection(message.messageId)
-                                : null,
-                            onReply: () =>
-                                setState(() => _replyToMessage = message),
-                            onEdit: () {
-                              setState(() {
-                                _editingMessage = message;
-                                _messageController.text = message.content ?? '';
-                              });
-                            },
-                            onDelete: () => _showDeleteOptions(message),
-                            onForward: () => _forwardMessage(message),
-                            onReact: (emoji) => _reactToMessage(message, emoji),
-                            onJumpToReply: (replyId) => _jumpToMessage(replyId),
-                          );
-                        },
-                      ),
+            child: _buildMessagesList(),
           ),
-          if (_replyToMessage != null) _buildReplyPreview(),
-          if (_editingMessage != null) _buildEditPreview(),
-          _buildMessageInput(),
-          if (_showEmojiPicker)
-            SizedBox(
-              height: 250,
-              child: EmojiPicker(
-                onEmojiSelected: (category, emoji) => _onEmojiSelected(emoji),
-                config: const Config(
-                  checkPlatformCompatibility: true,
-                ),
-              ),
-            ),
+          
+          ChatInputWidget(
+            onSendMessage: _sendMessage,
+            onScheduleMessage: _scheduleMessage,
+            replyToMessage: _replyToMessage,
+            onCancelReply: () => setState(() => _replyToMessage = null),
+            onTypingChanged: _onTypingChanged,
+          ),
         ],
       ),
+      floatingActionButton: _showScrollToBottom
+          ? _buildScrollToBottomButton()
+          : null,
     );
   }
 
-  PreferredSizeWidget _buildNormalAppBar() {
+  PreferredSizeWidget _buildAppBar() {
+    if (_isSearching) {
+      return AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => setState(() {
+            _isSearching = false;
+            _searchQuery = '';
+          }),
+        ),
+        title: TextField(
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'Search in chat...',
+            border: InputBorder.none,
+          ),
+          onChanged: (value) => setState(() => _searchQuery = value),
+        ),
+      );
+    }
+
     return AppBar(
-      backgroundColor: const Color(0xFFFF6F00),
-      foregroundColor: Colors.white,
-      elevation: 0,
-      titleSpacing: 0,
-      title: _isSearching
-          ? TextField(
-              controller: _searchController,
-              autofocus: true,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                hintText: 'Search messages...',
-                hintStyle: TextStyle(color: Colors.white70),
-                border: InputBorder.none,
-              ),
-              onChanged: (value) => setState(() => _searchQuery = value),
-            )
-          : InkWell(
-              onTap: () {
-                if (widget.chatType == ChatType.private &&
-                    widget.otherUserId.isNotEmpty) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          UserProfileScreen(userId: widget.otherUserId),
-                    ),
-                  );
-                }
-              },
-              child: Row(
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back),
+        onPressed: () => Navigator.pop(context),
+      ),
+      title: InkWell(
+        onTap: () {
+          // Navigate to user profile
+          // TODO: Implement user profile navigation
+        },
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 20,
+              backgroundImage: _otherUser?.profilePictureUrl != null
+                  ? NetworkImage(_otherUser!.profilePictureUrl!)
+                  : null,
+              child: _otherUser?.profilePictureUrl == null
+                  ? Text(
+                      _otherUser?.displayName.substring(0, 1).toUpperCase() ?? '?',
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(
-                    radius: 18,
-                    backgroundColor: Colors.white,
-                    child: Text(
-                      widget.chatName[0].toUpperCase(),
-                      style: const TextStyle(
-                        color: Color(0xFFFF6F00),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                  Text(
+                    _otherUser?.displayName ?? 'Loading...',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.chatName,
-                          style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w600),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        if (widget.chatType == ChatType.private)
-                          Text(
-                            _getOnlineStatus(),
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                      ],
+                  Text(
+                    _getStatusText(),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _otherUser?.isOnline ?? false 
+                          ? Colors.green 
+                          : Colors.grey,
                     ),
                   ),
                 ],
               ),
             ),
+          ],
+        ),
+      ),
       actions: [
-        if (_isSearching)
-          IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: _cancelSearch,
-          )
-        else
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: _startSearch,
-          ),
         IconButton(
-          icon: const Icon(Icons.more_vert),
-          onPressed: _showChatOptions,
+          icon: const Icon(Icons.search),
+          onPressed: _searchInChat,
+        ),
+        PopupMenuButton<String>(
+          onSelected: (value) {
+            switch (value) {
+              case 'view_profile':
+                // TODO: Navigate to profile
+                break;
+              case 'mute':
+                // TODO: Mute chat
+                break;
+              case 'wallpaper':
+                // TODO: Change wallpaper
+                break;
+              case 'clear_chat':
+                // TODO: Clear chat
+                break;
+            }
+          },
+          itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: 'view_profile',
+              child: Text('View Profile'),
+            ),
+            const PopupMenuItem(
+              value: 'mute',
+              child: Text('Mute Notifications'),
+            ),
+            const PopupMenuItem(
+              value: 'wallpaper',
+              child: Text('Change Wallpaper'),
+            ),
+            const PopupMenuItem(
+              value: 'clear_chat',
+              child: Text('Clear Chat'),
+            ),
+          ],
         ),
       ],
     );
   }
 
-  PreferredSizeWidget _buildSelectionAppBar() {
-    return AppBar(
-      backgroundColor: const Color(0xFFFF6F00),
-      foregroundColor: Colors.white,
-      leading: IconButton(
-        icon: const Icon(Icons.close),
-        onPressed: _cancelSelection,
-      ),
-      title: Text('${_selectedMessages.length} selected'),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.delete),
-          onPressed: _deleteSelectedMessages,
-        ),
-        IconButton(
-          icon: const Icon(Icons.forward),
-          onPressed: _forwardSelectedMessages,
-        ),
-      ],
-    );
+  String _getStatusText() {
+    if (_otherUser == null) return '';
+    
+    if (_isTyping) return 'typing...';
+    
+    if (_otherUser!.isOnline) {
+      return 'online';
+    } else if (_otherUser!.lastSeen != null) {
+      return 'last seen ${DateUtil.formatLastSeen(_otherUser!.lastSeen!)}';
+    }
+    
+    return 'offline';
   }
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey[400]),
-          const SizedBox(height: 16),
-          const Text('No messages yet',
-              style: TextStyle(fontSize: 16, color: Colors.grey)),
-          const SizedBox(height: 8),
-          const Text('Send your first message',
-              style: TextStyle(fontSize: 14, color: Colors.grey)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildReplyPreview() {
+  Widget _buildPinnedMessageBar() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey[300]!)),
+        color: Theme.of(context).colorScheme.primaryContainer,
+        border: Border(
+          bottom: BorderSide(
+            color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+          ),
+        ),
       ),
       child: Row(
         children: [
-          Container(width: 3, height: 40, color: const Color(0xFFFF6F00)),
-          const SizedBox(width: 8),
+          Icon(
+            Icons.push_pin,
+            size: 20,
+            color: Theme.of(context).colorScheme.onPrimaryContainer,
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _replyToMessage!.senderName ?? 'Unknown',
-                  style: const TextStyle(
-                      color: Color(0xFFFF6F00),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13),
+                  'Pinned Message',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  ),
                 ),
-                const SizedBox(height: 2),
                 Text(
-                  _replyToMessage!.content ?? '',
-                  style: const TextStyle(fontSize: 14, color: Colors.black87),
+                  _pinnedMessage?.content ?? 'Media',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.close, size: 20),
-            onPressed: () => setState(() => _replyToMessage = null),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEditPreview() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.blue[50],
-        border: Border(top: BorderSide(color: Colors.blue[200]!)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.edit, size: 20, color: Colors.blue),
-          const SizedBox(width: 8),
-          const Expanded(
-            child: Text(
-              'Edit message',
-              style: TextStyle(color: Colors.blue, fontWeight: FontWeight.w600),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.close, size: 20, color: Colors.blue),
-            onPressed: () {
-              setState(() {
-                _editingMessage = null;
-                _messageController.clear();
-              });
-            },
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMessageInput() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 3,
-            offset: const Offset(0, -1),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            icon: Icon(
-              _showEmojiPicker ? Icons.keyboard : Icons.emoji_emotions_outlined,
-              color: const Color(0xFFFF6F00),
-            ),
-            onPressed: _toggleEmojiPicker,
-          ),
-          IconButton(
-            icon: const Icon(Icons.attach_file, color: Colors.grey),
-            onPressed: _showAttachmentOptions,
-          ),
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(25),
-              ),
-              child: TextField(
-                controller: _messageController,
-                decoration: const InputDecoration(
-                  hintText: 'Message',
-                  border: InputBorder.none,
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                ),
-                maxLines: null,
-                textInputAction: TextInputAction.newline,
-                onChanged: (_) => _onTyping(),
-                onTap: () {
-                  if (_showEmojiPicker) {
-                    setState(() => _showEmojiPicker = false);
-                  }
-                },
-              ),
-            ),
-          ),
-          const SizedBox(width: 4),
-          if (_scheduledMessagesCount > 0)
-            Stack(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.schedule, color: Color(0xFFFF6F00)),
-                  onPressed: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ScheduleMessageScreen(
-                          chatId: widget.chatId,
-                          chatName: widget.chatName,
-                        ),
-                      ),
-                    );
-                    _loadScheduledMessagesCount();
-                  },
-                ),
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Text(
-                      '$_scheduledMessagesCount',
-                      style: const TextStyle(color: Colors.white, fontSize: 10),
-                    ),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
                   ),
                 ),
               ],
             ),
-          const SizedBox(width: 4),
-          GestureDetector(
-            onTap: _isSending ? null : () => _sendMessage(),
-            onLongPress: _isSending
-                ? null
-                : () async {
-                    if (_messageController.text.trim().isNotEmpty) {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ScheduleMessageScreen(
-                            chatId: widget.chatId,
-                            chatName: widget.chatName,
-                            initialMessage: _messageController.text.trim(),
-                          ),
-                        ),
-                      );
-                      _messageController.clear();
-                      _loadScheduledMessagesCount();
-                    }
-                  },
-            child: Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: _isSending ? Colors.grey : const Color(0xFFFF6F00),
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: _isSending
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : Icon(
-                        _editingMessage != null ? Icons.check : Icons.send,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-              ),
+          ),
+          IconButton(
+            icon: Icon(
+              Icons.close,
+              color: Theme.of(context).colorScheme.onPrimaryContainer,
             ),
+            onPressed: () async {
+              await _chatService.unpinMessage(_pinnedMessage!.messageId);
+              _loadLocalMessages();
+            },
+            iconSize: 20,
           ),
         ],
       ),
     );
   }
 
-  void _showChatInfo() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
+  Widget _buildMessagesList() {
+    final filteredMessages = _searchQuery.isEmpty
+        ? _messages
+        : _messages.where((msg) {
+            return msg.content?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false;
+          }).toList();
+
+    if (filteredMessages.isEmpty) {
+      return Center(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircleAvatar(
-              radius: 40,
-              backgroundColor: Colors.grey[300],
-              child: Text(
-                widget.chatName[0].toUpperCase(),
-                style:
-                    const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-              ),
+            Icon(
+              Icons.chat_bubble_outline,
+              size: 64,
+              color: Theme.of(context).colorScheme.outline,
             ),
             const SizedBox(height: 16),
-            Text(widget.chatName,
-                style:
-                    const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            if (widget.chatType == ChatType.private)
-              Text(_getOnlineStatus(),
-                  style: const TextStyle(fontSize: 14, color: Colors.grey)),
-            const SizedBox(height: 24),
-            ListTile(
-              leading: const Icon(Icons.notifications),
-              title: const Text('Mute'),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              leading: const Icon(Icons.search),
-              title: const Text('Search'),
-              onTap: () {
-                Navigator.pop(context);
-                _startSearch();
-              },
-            ),
-            if (widget.chatType == ChatType.private) ...[
-              ListTile(
-                leading: const Icon(Icons.block, color: Colors.red),
-                title: const Text('Block User',
-                    style: TextStyle(color: Colors.red)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _blockUser();
-                },
+            Text(
+              _searchQuery.isEmpty
+                  ? 'No messages yet\nSay hi! 👋'
+                  : 'No messages found',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
-              ListTile(
-                leading: const Icon(Icons.report, color: Colors.red),
-                title: const Text('Report User',
-                    style: TextStyle(color: Colors.red)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _reportUser();
-                },
-              ),
-            ],
+            ),
           ],
         ),
-      ),
-    );
-  }
-
-  void _showChatOptions() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Container(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.7,
-        ),
-        padding: const EdgeInsets.symmetric(vertical: 20),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.info),
-                title: Text('${widget.chatName} Info'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showChatInfo();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.search),
-                title: const Text('Search in Chat'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _startSearch();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.notifications_off),
-                title: const Text('Mute'),
-                onTap: () => Navigator.pop(context),
-              ),
-              ListTile(
-                leading: const Icon(Icons.wallpaper),
-                title: const Text('Change Wallpaper'),
-                onTap: () => Navigator.pop(context),
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete, color: Colors.red),
-                title: const Text('Clear History',
-                    style: TextStyle(color: Colors.red)),
-                onTap: () => Navigator.pop(context),
-              ),
-              if (widget.chatType == ChatType.private) ...[
-                ListTile(
-                  leading: const Icon(Icons.block, color: Colors.red),
-                  title: const Text('Block User',
-                      style: TextStyle(color: Colors.red)),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _blockUser();
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.report, color: Colors.red),
-                  title: const Text('Report User',
-                      style: TextStyle(color: Colors.red)),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _reportUser();
-                  },
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showDeleteOptions(Message message) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.symmetric(vertical: 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.delete_outline, color: Colors.red),
-              title: const Text('Delete for Me'),
-              onTap: () {
-                Navigator.pop(context);
-                _deleteMessage(message, forEveryone: false);
-              },
-            ),
-            if (message.senderId == _supabase.auth.currentUser?.id)
-              ListTile(
-                leading: const Icon(Icons.delete, color: Colors.red),
-                title: const Text('Delete for Everyone',
-                    style: TextStyle(color: Colors.red)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _deleteMessage(message, forEveryone: true);
-                },
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _deleteMessage(Message message,
-      {required bool forEveryone}) async {
-    try {
-      if (forEveryone) {
-        // Delete for everyone - remove from database
-        await _supabase
-            .from('ngm_messages')
-            .delete()
-            .eq('message_id', message.messageId);
-      } else {
-        // Delete only for current user (local UI only)
-        setState(() {
-          _messages.removeWhere((m) => m.messageId == message.messageId);
-        });
-      }
-    } catch (e) {
-      debugPrint('Error deleting message: $e');
-    }
-  }
-
-  void _forwardMessage(Message message) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ForwardMessageScreen(messages: [message]),
-      ),
-    );
-  }
-
-  Future<void> _reactToMessage(Message message, String emoji) async {
-    try {
-      final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) return;
-
-      // Check if already reacted with this emoji
-      final existingReaction = await _supabase
-          .from('ngm_message_reactions')
-          .select()
-          .eq('message_id', message.messageId)
-          .eq('user_id', userId)
-          .eq('emoji', emoji)
-          .maybeSingle();
-
-      if (existingReaction != null) {
-        // Remove reaction
-        await _supabase
-            .from('ngm_message_reactions')
-            .delete()
-            .eq('reaction_id', existingReaction['reaction_id']);
-      } else {
-        // Add reaction
-        await _supabase.from('ngm_message_reactions').insert({
-          'message_id': message.messageId,
-          'user_id': userId,
-          'emoji': emoji,
-          'created_at': DateTime.now().toIso8601String(),
-        });
-      }
-    } catch (e) {
-      debugPrint('Error reacting to message: $e');
-    }
-  }
-
-  void _jumpToMessage(String messageId) {
-    final index = _messages.indexWhere((m) => m.messageId == messageId);
-    if (index != -1) {
-      _scrollController.animateTo(
-        index * 80.0, // Approximate message height
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeInOut,
       );
     }
+
+    return ListView.builder(
+      controller: _scrollController,
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      itemCount: filteredMessages.length,
+      itemBuilder: (context, index) {
+        final message = filteredMessages[index];
+        final previousMessage = index > 0 ? filteredMessages[index - 1] : null;
+        final isMe = message.senderId == _chatService.currentUserId;
+        
+        // Show date divider
+        final showDateDivider = DateUtil.shouldShowDateDivider(
+          previousMessage?.createdAt,
+          message.createdAt,
+        );
+
+        // Show unread divider
+        final showUnreadDivider = index == filteredMessages.length - _unreadCount &&
+            _unreadCount > 0;
+
+        // Show avatar for first message in group
+        final showAvatar = previousMessage == null ||
+            previousMessage.senderId != message.senderId ||
+            DateUtil.shouldShowDateDivider(
+              previousMessage.createdAt,
+              message.createdAt,
+            );
+
+        final replyToMsg = message.replyToMessageId != null
+            ? _messages.firstWhere(
+                (m) => m.messageId == message.replyToMessageId,
+                orElse: () => message,
+              )
+            : null;
+
+        return Column(
+          children: [
+            if (showDateDivider)
+              DateDivider(
+                dateText: DateUtil.getDateDivider(message.createdAt),
+              ),
+            
+            if (showUnreadDivider)
+              UnreadDivider(unreadCount: _unreadCount),
+            
+            MessageBubble(
+              message: message,
+              sender: _otherUser,
+              isMe: isMe,
+              showAvatar: showAvatar,
+              onLongPress: () => _showMessageOptions(message),
+              replyToMessage: replyToMsg,
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildScrollToBottomButton() {
+    return FloatingActionButton.small(
+      onPressed: _scrollToBottom,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          const Icon(Icons.arrow_downward),
+          if (_unreadCount > 0)
+            Positioned(
+              top: 0,
+              right: 0,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.error,
+                  shape: BoxShape.circle,
+                ),
+                constraints: const BoxConstraints(
+                  minWidth: 20,
+                  minHeight: 20,
+                ),
+                child: Text(
+                  _unreadCount > 99 ? '99+' : _unreadCount.toString(),
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Theme.of(context).colorScheme.onError,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }

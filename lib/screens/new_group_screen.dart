@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/chat_model.dart';
-import 'chat_window_screen.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class NewGroupScreen extends StatefulWidget {
   const NewGroupScreen({super.key});
@@ -13,76 +13,33 @@ class NewGroupScreen extends StatefulWidget {
 class _NewGroupScreenState extends State<NewGroupScreen> {
   final _supabase = Supabase.instance.client;
   final _groupNameController = TextEditingController();
-  final _groupDescriptionController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _imagePicker = ImagePicker();
   
-  List<Contact> _contacts = [];
-  List<Contact> _selectedContacts = [];
-  bool _isLoading = true;
+  File? _selectedImage;
   bool _isCreating = false;
-  int _currentStep = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadContacts();
-  }
 
   @override
   void dispose() {
     _groupNameController.dispose();
-    _groupDescriptionController.dispose();
+    _descriptionController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadContacts() async {
-    try {
-      setState(() => _isLoading = true);
-
-      final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) return;
-
-      final response = await _supabase
-          .from('ngm_contacts')
-          .select('''
-            *,
-            contact:ngm_users!contact_user_id(*)
-          ''')
-          .eq('user_id', userId)
-          .order('contact_name', ascending: true);
-
-      final List<Contact> contacts = [];
-      for (var item in response as List) {
-        final contact = item['contact'];
-        contacts.add(Contact(
-          userId: contact['user_id'],
-          name: item['contact_name'] ?? contact['full_name'] ?? contact['username'] ?? 'Unknown',
-          username: contact['username'],
-          profilePictureUrl: contact['profile_picture_url'],
-          isOnline: contact['is_online'] ?? false,
-        ));
-      }
-
+  Future<void> _pickImage() async {
+    final image = await _imagePicker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
       setState(() {
-        _contacts = contacts;
-        _isLoading = false;
+        _selectedImage = File(image.path);
       });
-    } catch (e) {
-      debugPrint('Error loading contacts: $e');
-      setState(() => _isLoading = false);
     }
   }
 
   Future<void> _createGroup() async {
-    if (_groupNameController.text.trim().isEmpty) {
+    final groupName = _groupNameController.text.trim();
+    if (groupName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('ગ્રુપનું નામ આપો')),
-      );
-      return;
-    }
-
-    if (_selectedContacts.length < 2) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('ઓછામાં ઓછા 2 સભ્યો પસંદ કરો')),
+        const SnackBar(content: Text('Please enter group name')),
       );
       return;
     }
@@ -91,12 +48,25 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
 
     try {
       final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) return;
+      if (userId == null) throw Exception('User not logged in');
+
+      // Upload image if selected
+      String? imageUrl;
+      if (_selectedImage != null) {
+        final fileName = 'group_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        
+        await _supabase.storage.from('group-pictures').upload(
+          fileName,
+          _selectedImage!,
+          fileOptions: const FileOptions(upsert: true),
+        );
+
+        imageUrl = _supabase.storage.from('group-pictures').getPublicUrl(fileName);
+      }
 
       // Create chat
       final chat = await _supabase.from('ngm_chats').insert({
         'chat_type': 'group',
-        'created_at': DateTime.now().toIso8601String(),
       }).select().single();
 
       final chatId = chat['chat_id'];
@@ -104,10 +74,12 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
       // Create group
       await _supabase.from('ngm_groups').insert({
         'chat_id': chatId,
-        'group_name': _groupNameController.text.trim(),
-        'group_description': _groupDescriptionController.text.trim(),
+        'group_name': groupName,
+        'group_description': _descriptionController.text.trim(),
+        'group_picture_url': imageUrl,
         'created_by': userId,
-        'created_at': DateTime.now().toIso8601String(),
+        'max_members': 256,
+        'is_public': false,
       });
 
       // Add creator as admin
@@ -115,302 +87,131 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
         'chat_id': chatId,
         'user_id': userId,
         'role': 'admin',
+        'is_active': true,
         'can_send_messages': true,
         'can_add_members': true,
         'can_edit_info': true,
       });
 
-      // Add selected members
-      for (var contact in _selectedContacts) {
-        await _supabase.from('ngm_chat_participants').insert({
-          'chat_id': chatId,
-          'user_id': contact.userId,
-          'role': 'member',
-          'can_send_messages': true,
-        });
-      }
+      if (!mounted) return;
 
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ChatWindowScreen(
-              chatId: chatId,
-              chatName: _groupNameController.text.trim(),
-              chatType: ChatType.group,
-            ),
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Group created successfully!')),
+      );
+
+      Navigator.pop(context);
     } catch (e) {
       debugPrint('Error creating group: $e');
-      setState(() => _isCreating = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('ગ્રુપ બનાવવામાં ભૂલ થઈ')),
+          SnackBar(content: Text('Error: $e')),
         );
       }
+    } finally {
+      setState(() => _isCreating = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('નવું ગ્રુપ'),
+        elevation: 0.5,
+        backgroundColor: const Color(0xFFFF6F00),
+        foregroundColor: Colors.white,
+        title: const Text('New Group', style: TextStyle(fontWeight: FontWeight.w600)),
         actions: [
-          if (_currentStep == 1)
-            TextButton(
-              onPressed: _isCreating ? null : _createGroup,
-              child: _isCreating
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Text(
-                      'બનાવો',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                    ),
-            ),
+          TextButton(
+            onPressed: _isCreating ? null : _createGroup,
+            child: _isCreating
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                  )
+                : const Text('Create', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+          ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : IndexedStack(
-              index: _currentStep,
-              children: [
-                _buildSelectMembersStep(),
-                _buildGroupInfoStep(),
-              ],
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: GestureDetector(
+                onTap: _pickImage,
+                child: CircleAvatar(
+                  radius: 60,
+                  backgroundColor: Colors.grey[200],
+                  backgroundImage: _selectedImage != null ? FileImage(_selectedImage!) : null,
+                  child: _selectedImage == null
+                      ? const Icon(Icons.camera_alt, size: 40, color: Colors.grey)
+                      : null,
+                ),
+              ),
             ),
-    );
-  }
+            const SizedBox(height: 8),
+            Center(
+              child: TextButton.icon(
+                onPressed: _pickImage,
+                icon: const Icon(Icons.add_photo_alternate, color: Color(0xFFFF6F00)),
+                label: const Text('Add Group Photo', style: TextStyle(color: Color(0xFFFF6F00))),
+              ),
+            ),
+            const SizedBox(height: 24),
 
-  Widget _buildSelectMembersStep() {
-  return Scaffold(
-    body: Column(
-      children: [
-        // Selected contacts preview
-        if (_selectedContacts.isNotEmpty)
-          Container(
-            height: 100,
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _selectedContacts.length,
-              itemBuilder: (context, index) {
-                final contact = _selectedContacts[index];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Column(
-                    children: [
-                      Stack(
-                        children: [
-                          CircleAvatar(
-                            radius: 30,
-                            backgroundColor: Colors.grey[300],
-                            backgroundImage: contact.profilePictureUrl != null
-                                ? NetworkImage(contact.profilePictureUrl!)
-                                : null,
-                            child: contact.profilePictureUrl == null
-                                ? Text(contact.name[0].toUpperCase())
-                                : null,
-                          ),
-                          Positioned(
-                            right: 0,
-                            top: 0,
-                            child: GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _selectedContacts.remove(contact);
-                                });
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(2),
-                                decoration: const BoxDecoration(
-                                  color: Colors.red,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.close,
-                                  size: 16,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      SizedBox(
-                        width: 60,
-                        child: Text(
-                          contact.name,
-                          style: const TextStyle(fontSize: 12),
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
+            const Text('Group Name', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _groupNameController,
+              decoration: InputDecoration(
+                hintText: 'Enter group name',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                filled: true,
+                fillColor: Colors.grey[50],
+              ),
+              maxLength: 50,
+            ),
+            const SizedBox(height: 16),
+
+            const Text('Description (Optional)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _descriptionController,
+              decoration: InputDecoration(
+                hintText: 'What is this group about?',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                filled: true,
+                fillColor: Colors.grey[50],
+              ),
+              maxLines: 3,
+              maxLength: 200,
+            ),
+            const SizedBox(height: 24),
+
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.blue[700]),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'You can add members after creating the group',
+                      style: TextStyle(color: Colors.blue[700], fontSize: 13),
+                    ),
                   ),
-                );
-              },
+                ],
+              ),
             ),
-          ),
-
-        // Contacts list
-        Expanded(
-          child: ListView.builder(
-            itemCount: _contacts.length,
-            itemBuilder: (context, index) {
-              final contact = _contacts[index];
-              final isSelected = _selectedContacts.contains(contact);
-
-              return CheckboxListTile(
-                value: isSelected,
-                onChanged: (value) {
-                  setState(() {
-                    if (value == true) {
-                      _selectedContacts.add(contact);
-                    } else {
-                      _selectedContacts.remove(contact);
-                    }
-                  });
-                },
-                secondary: CircleAvatar(
-                  backgroundColor: Colors.grey[300],
-                  backgroundImage: contact.profilePictureUrl != null
-                      ? NetworkImage(contact.profilePictureUrl!)
-                      : null,
-                  child: contact.profilePictureUrl == null
-                      ? Text(contact.name[0].toUpperCase())
-                      : null,
-                ),
-                title: Text(contact.name),
-                subtitle:
-                    contact.username != null ? Text('@${contact.username}') : null,
-              );
-            },
-          ),
+          ],
         ),
-      ],
-    ),
-
-    // ✅ NOW CORRECT PLACE
-    bottomNavigationBar: _selectedContacts.isNotEmpty
-        ? Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.2),
-                  blurRadius: 4,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            child: ElevatedButton(
-              onPressed: () => setState(() => _currentStep = 1),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
-              child: Text('આગળ (${_selectedContacts.length} સભ્યો)'),
-            ),
-          )
-        : null,
-  );
-}
-
-  Widget _buildGroupInfoStep() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Group picture placeholder
-          Center(
-            child: GestureDetector(
-              onTap: () {
-                // TODO: Implement image picker
-              },
-              child: CircleAvatar(
-                radius: 50,
-                backgroundColor: Colors.grey[300],
-                child: const Icon(Icons.camera_alt, size: 40, color: Colors.white),
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Group name
-          TextField(
-            controller: _groupNameController,
-            decoration: const InputDecoration(
-              labelText: 'ગ્રુપનું નામ',
-              prefixIcon: Icon(Icons.group),
-              border: OutlineInputBorder(),
-            ),
-            maxLength: 50,
-          ),
-          const SizedBox(height: 16),
-
-          // Group description
-          TextField(
-            controller: _groupDescriptionController,
-            decoration: const InputDecoration(
-              labelText: 'ગ્રુપની માહિતી (વૈકલ્પિક)',
-              prefixIcon: Icon(Icons.info_outline),
-              border: OutlineInputBorder(),
-            ),
-            maxLines: 3,
-            maxLength: 200,
-          ),
-          const SizedBox(height: 24),
-
-          // Selected members preview
-          const Text(
-            'સભ્યો',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _selectedContacts.length,
-            itemBuilder: (context, index) {
-              final contact = _selectedContacts[index];
-              return ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: Colors.grey[300],
-                  backgroundImage: contact.profilePictureUrl != null
-                      ? NetworkImage(contact.profilePictureUrl!)
-                      : null,
-                  child: contact.profilePictureUrl == null
-                      ? Text(contact.name[0].toUpperCase())
-                      : null,
-                ),
-                title: Text(contact.name),
-                trailing: IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () {
-                    setState(() {
-                      _selectedContacts.remove(contact);
-                      if (_selectedContacts.isEmpty) {
-                        _currentStep = 0;
-                      }
-                    });
-                  },
-                ),
-              );
-            },
-          ),
-        ],
       ),
     );
   }

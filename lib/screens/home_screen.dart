@@ -8,6 +8,7 @@ import 'contact_us_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'faq_screen.dart';
 import 'terms_conditions_screen.dart';
+import 'chapters_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,7 +20,29 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = true;
   List<Map<String, dynamic>> _blocks = [];
+  List<Map<String, dynamic>> _subjects = []; // Dynamic subjects from database
   String _userName = '';
+
+  // Subject colors and emojis mapping by subject_code
+  final Map<String, Map<String, dynamic>> _subjectConfig = {
+    'GUJARATI_GRAMMAR': {'emoji': '📝', 'colors': [Color(0xFF06b6d4), Color(0xFF0891b2)], 'section': 'gujarat'},
+    'GUJARATI_SAHITYA': {'emoji': '📚', 'colors': [Color(0xFFd946ef), Color(0xFFc026d3)], 'section': 'gujarat'},
+    'GUJARAT_HISTORY': {'emoji': '🏰', 'colors': [Color(0xFF22c55e), Color(0xFF16a34a)], 'section': 'gujarat'},
+    'GUJARAT_CULTURE': {'emoji': '🪔', 'colors': [Color(0xFF14b8a6), Color(0xFF0d9488)], 'section': 'gujarat'},
+    'GUJARAT_GEOGRAPHY': {'emoji': '🌍', 'colors': [Color(0xFF3b82f6), Color(0xFF2563eb)], 'section': 'gujarat'},
+    'MATHS': {'emoji': '📐', 'colors': [Color(0xFFef4444), Color(0xFFdc2626)], 'section': 'core'},
+    'REASONING': {'emoji': '🧠', 'colors': [Color(0xFFf97316), Color(0xFFea580c)], 'section': 'core'},
+    'DATA_INTERPRETATION': {'emoji': '📊', 'colors': [Color(0xFFf43f5e), Color(0xFFe11d48)], 'section': 'core'},
+    'INDIAN_HISTORY': {'emoji': '🏛️', 'colors': [Color(0xFF84cc16), Color(0xFF65a30d)], 'section': 'india'},
+    'INDIAN_CULTURE': {'emoji': '🎭', 'colors': [Color(0xFF10b981), Color(0xFF059669)], 'section': 'india'},
+    'INDIAN_GEOGRAPHY': {'emoji': '🗺️', 'colors': [Color(0xFF0ea5e9), Color(0xFF0284c7)], 'section': 'india'},
+    'CONSTITUTION': {'emoji': '⚖️', 'colors': [Color(0xFFf59e0b), Color(0xFFd97706)], 'section': 'other'},
+    'INDIAN_ECONOMY': {'emoji': '💰', 'colors': [Color(0xFF6366f1), Color(0xFF4f46e5)], 'section': 'other'},
+    'ENGLISH_GRAMMAR': {'emoji': '🅰️', 'colors': [Color(0xFFa855f7), Color(0xFF9333ea)], 'section': 'other'},
+    'GENERAL_SCIENCE': {'emoji': '🔬', 'colors': [Color(0xFF8b5cf6), Color(0xFF7c3aed)], 'section': 'other'},
+    'SCIENCE_AND_TECH': {'emoji': '🚀', 'colors': [Color(0xFFec4899), Color(0xFFdb2777)], 'section': 'other'},
+    'CURRENT_AFFAIRS': {'emoji': '📰', 'colors': [Color(0xFFef4444), Color(0xFFdc2626)], 'section': 'other'},
+  };
 
   @override
   void initState() {
@@ -41,14 +64,22 @@ class _HomeScreenState extends State<HomeScreen> {
         _userName = profileResponse['full_name'] ?? user.email?.split('@')[0] ?? 'Student';
       }
 
-      final response = await Supabase.instance.client
+      // Load blocks
+      final blocksResponse = await Supabase.instance.client
           .from('app_home_blocks')
           .select('*')
           .eq('is_active', true)
           .order('display_order');
 
+      // Load subjects from database
+      final subjectsResponse = await Supabase.instance.client
+          .from('kls_subjects')
+          .select('*')
+          .order('created_at');
+
       setState(() {
-        _blocks = List<Map<String, dynamic>>.from(response);
+        _blocks = List<Map<String, dynamic>>.from(blocksResponse);
+        _subjects = List<Map<String, dynamic>>.from(subjectsResponse);
         _isLoading = false;
       });
     } catch (e) {
@@ -250,9 +281,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildBlock(Map<String, dynamic> block) {
     final String blockType = block['block_type'] ?? '';
+    final String blockName = block['block_name'] ?? '';
     final Map<String, dynamic> blockData = block['block_data'] is String
         ? jsonDecode(block['block_data'])
         : block['block_data'];
+
+    // Subject Cards Widget (Special widget for all subjects)
+    if (blockType == 'widget' && blockName == 'subject_cards') {
+      return _buildSubjectCardsWidget();
+    }
 
     switch (blockType) {
       case 'welcome':
@@ -263,9 +300,242 @@ class _HomeScreenState extends State<HomeScreen> {
         return _buildSubjects(blockData);
       case 'announcement':
         return _buildAnnouncement(blockData);
+      case 'html':
+        // For HTML blocks, show title if it's a title block
+        if (blockName.contains('_title')) {
+          String title = _extractTitle(blockData['html'] ?? '');
+          return Padding(
+            padding: const EdgeInsets.only(top: 24, bottom: 12, left: 4),
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1f2937),
+              ),
+            ),
+          );
+        }
+        return const SizedBox.shrink();
       default:
         return const SizedBox.shrink();
     }
+  }
+
+  String _extractTitle(String html) {
+    RegExp exp = RegExp(r'>([^<]+)</');
+    var match = exp.firstMatch(html);
+    return match?.group(1) ?? '';
+  }
+
+  // Build Subject Cards Widget with all subjects organized by sections
+  Widget _buildSubjectCardsWidget() {
+    if (_subjects.isEmpty) {
+      return const Center(child: Text('કોઈ subjects નથી'));
+    }
+
+    // Organize subjects by section
+    final gujaratSubjects = <Map<String, dynamic>>[];
+    final coreSubjects = <Map<String, dynamic>>[];
+    final indiaSubjects = <Map<String, dynamic>>[];
+    final otherSubjects = <Map<String, dynamic>>[];
+
+    for (var subject in _subjects) {
+      final subjectCode = subject['subject_code'] ?? '';
+      final config = _subjectConfig[subjectCode];
+      
+      if (config != null) {
+        final section = config['section'];
+        final subjectWithConfig = {
+          ...subject,
+          'emoji': config['emoji'],
+          'colors': config['colors'],
+        };
+        
+        if (section == 'gujarat') {
+          gujaratSubjects.add(subjectWithConfig);
+        } else if (section == 'core') {
+          coreSubjects.add(subjectWithConfig);
+        } else if (section == 'india') {
+          indiaSubjects.add(subjectWithConfig);
+        } else {
+          otherSubjects.add(subjectWithConfig);
+        }
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ગુજરાત સંબંધિત
+        if (gujaratSubjects.isNotEmpty) ...[
+          const Padding(
+            padding: EdgeInsets.only(top: 8, bottom: 16, left: 4),
+            child: Text(
+              '📚 ગુજરાત સંબંધિત વિષયો',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1f2937),
+              ),
+            ),
+          ),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.1,
+            ),
+            itemCount: gujaratSubjects.length,
+            itemBuilder: (context, index) => _buildSubjectCard(gujaratSubjects[index]),
+          ),
+        ],
+        
+        // કોર સબ્જેક્ટ્સ
+        if (coreSubjects.isNotEmpty) ...[
+          const Padding(
+            padding: EdgeInsets.only(top: 24, bottom: 16, left: 4),
+            child: Text(
+              '🔢 કોર સબ્જેક્ટ્સ',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1f2937),
+              ),
+            ),
+          ),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.1,
+            ),
+            itemCount: coreSubjects.length,
+            itemBuilder: (context, index) => _buildSubjectCard(coreSubjects[index]),
+          ),
+        ],
+        
+        // ભારત સંબંધિત
+        if (indiaSubjects.isNotEmpty) ...[
+          const Padding(
+            padding: EdgeInsets.only(top: 24, bottom: 16, left: 4),
+            child: Text(
+              '🇮🇳 ભારત સંબંધિત વિષયો',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1f2937),
+              ),
+            ),
+          ),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.1,
+            ),
+            itemCount: indiaSubjects.length,
+            itemBuilder: (context, index) => _buildSubjectCard(indiaSubjects[index]),
+          ),
+        ],
+        
+        // અન્ય મહત્વના
+        if (otherSubjects.isNotEmpty) ...[
+          const Padding(
+            padding: EdgeInsets.only(top: 24, bottom: 16, left: 4),
+            child: Text(
+              '⚖️ અન્ય મહત્વના વિષયો',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1f2937),
+              ),
+            ),
+          ),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.1,
+            ),
+            itemCount: otherSubjects.length,
+            itemBuilder: (context, index) => _buildSubjectCard(otherSubjects[index]),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildSubjectCard(Map<String, dynamic> subject) {
+    final List<Color> colors = subject['colors'] ?? [Color(0xFF3b82f6), Color(0xFF2563eb)];
+    final String emoji = subject['emoji'] ?? '📚';
+    final String name = subject['name'] ?? '';
+    final String id = subject['id'] ?? '';
+    
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ChaptersScreen(
+              subjectId: id,
+              subjectName: name,
+              subjectEmoji: emoji,
+              gradientColors: colors,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: colors,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: colors[0].withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              emoji,
+              style: const TextStyle(fontSize: 32),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              name,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildWelcomeCard(Map<String, dynamic> data) {
