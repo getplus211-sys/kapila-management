@@ -222,7 +222,20 @@ class _ChatListScreenState extends State<ChatListScreen>
               isPinned: _storage.isChatPinned(chatId), isMuted: participant['is_muted'] ?? false,
             );
           }
-          if (chatItem != null) chats.add(chatItem);
+          if (chatItem != null) {
+            // Respect local "delete for me" when deciding last message
+            final localMessages = _storage.getMessagesByChat(chatId)
+                .where((m) => !m.isDeleted && !m.isDeletedForMe)
+                .toList();
+            if (localMessages.isNotEmpty) {
+              final lastLocal = localMessages.last;
+              chatItem = chatItem.copyWith(
+                lastMessage: lastLocal.content ?? 'Media',
+                lastMessageTime: lastLocal.createdAt,
+              );
+            }
+            chats.add(chatItem);
+          }
         } catch (e) { debugPrint('Error: $e'); }
       }
 

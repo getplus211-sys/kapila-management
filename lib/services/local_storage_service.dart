@@ -41,7 +41,14 @@ class LocalStorageService {
   Future<void> saveMessage(Message message) async {
     try {
       final box = Hive.box<Message>(messagesBox);
-      await box.put(message.messageId, message);
+      final existing = box.get(message.messageId);
+      final toSave = existing == null
+          ? message
+          : message.copyWith(
+              isDeletedForMe:
+                  existing.isDeletedForMe || message.isDeletedForMe,
+            );
+      await box.put(message.messageId, toSave);
     } catch (e) {
       print('Error saving message to Hive: $e');
     }
@@ -49,9 +56,8 @@ class LocalStorageService {
 
   Future<void> saveMessages(List<Message> messages) async {
     try {
-      final box = Hive.box<Message>(messagesBox);
       for (var message in messages) {
-        await box.put(message.messageId, message);
+        await saveMessage(message);
       }
     } catch (e) {
       print('Error saving messages to Hive: $e');

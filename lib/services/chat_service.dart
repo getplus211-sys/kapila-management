@@ -416,8 +416,8 @@ class ChatService {
   // ✅ Delete message for me (local only)
   Future<void> deleteMessageForMe(String messageId) async {
     try {
-      _storage.deleteMessage(messageId);
-      debugPrint('✅ Message deleted locally: $messageId');
+      await _storage.markMessageAsDeletedForMe(messageId);
+      debugPrint('✅ Message marked as deleted for me locally: $messageId');
     } catch (e) {
       debugPrint('❌ Error deleting message locally: $e');
     }
