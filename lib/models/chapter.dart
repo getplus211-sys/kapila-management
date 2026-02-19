@@ -1,34 +1,27 @@
 class Chapter {
   final String id;
   final String subjectId;
+  final String name;
   final String chapterCode;
-  final String chapterName;
-  final String? chapterNameGujarati;
-  final int orderIndex;
   final DateTime? createdAt;
 
   Chapter({
     required this.id,
     required this.subjectId,
+    required this.name,
     required this.chapterCode,
-    required this.chapterName,
-    this.chapterNameGujarati,
-    required this.orderIndex,
     this.createdAt,
   });
-
-  // Getter for backward compatibility
-  String get name => chapterName;
 
   factory Chapter.fromJson(Map<String, dynamic> json) {
     return Chapter(
       id: json['id'] as String,
       subjectId: json['subject_id'] as String,
+      name: json['name'] as String,
       chapterCode: json['chapter_code'] as String,
-      chapterName: json['chapter_name'] as String,
-      chapterNameGujarati: json['chapter_name_gujarati'] as String?,
-      orderIndex: json['order_index'] as int,
-      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
+      createdAt: json['created_at'] != null 
+          ? DateTime.parse(json['created_at'] as String) 
+          : null,
     );
   }
 
@@ -36,10 +29,8 @@ class Chapter {
     return {
       'id': id,
       'subject_id': subjectId,
+      'name': name,
       'chapter_code': chapterCode,
-      'chapter_name': chapterName,
-      'chapter_name_gujarati': chapterNameGujarati,
-      'order_index': orderIndex,
       'created_at': createdAt?.toIso8601String(),
     };
   }

@@ -3,6 +3,7 @@ import '../services/supabase_service.dart';
 import '../models/chapter.dart';
 import '../models/quiz.dart';
 import 'quiz_engine_screen.dart';
+import '../screens/share_screen.dart';  // ✅ NEW
 
 class ChaptersScreen extends StatefulWidget {
   final String subjectId;
@@ -25,15 +26,23 @@ class ChaptersScreen extends StatefulWidget {
 class _ChaptersScreenState extends State<ChaptersScreen> {
   List<Chapter> chapters = [];
   List<Quiz> quizzes = [];
+  int selectedChapterIndex = 0;
   String? selectedChapterCode;
   String? selectedChapterName;
   bool isLoadingChapters = true;
   bool isLoadingQuizzes = false;
+  final ScrollController _chapterScrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     loadChapters();
+  }
+
+  @override
+  void dispose() {
+    _chapterScrollController.dispose();
+    super.dispose();
   }
 
   Future<void> loadChapters() async {
@@ -44,12 +53,15 @@ class _ChaptersScreenState extends State<ChaptersScreen> {
       
       setState(() {
         chapters = data.map((json) => Chapter.fromJson(json)).toList();
+        chapters.sort((a, b) {
+          if (a.createdAt == null || b.createdAt == null) return 0;
+          return a.createdAt!.compareTo(b.createdAt!);
+        });
         isLoadingChapters = false;
       });
       
-      // Auto-select first chapter
       if (chapters.isNotEmpty) {
-        selectChapter(chapters[0].chapterCode, chapters[0].name);
+        selectChapter(0);
       }
     } catch (e) {
       print('Error loading chapters: $e');
@@ -57,14 +69,26 @@ class _ChaptersScreenState extends State<ChaptersScreen> {
     }
   }
 
-  Future<void> selectChapter(String chapterCode, String chapterName) async {
+  Future<void> selectChapter(int index) async {
+    if (index < 0 || index >= chapters.length) return;
+    
     setState(() {
-      selectedChapterCode = chapterCode;
-      selectedChapterName = chapterName;
+      selectedChapterIndex = index;
+      selectedChapterCode = chapters[index].chapterCode;
+      selectedChapterName = chapters[index].name;
       isLoadingQuizzes = true;
     });
     
-    await loadQuizzes(chapterCode);
+    if (_chapterScrollController.hasClients) {
+      final double targetOffset = index * 100.0;
+      _chapterScrollController.animateTo(
+        targetOffset,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+    
+    await loadQuizzes(chapters[index].chapterCode);
   }
 
   Future<void> loadQuizzes(String chapterCode) async {
@@ -73,6 +97,10 @@ class _ChaptersScreenState extends State<ChaptersScreen> {
       
       setState(() {
         quizzes = data.map((json) => Quiz.fromJson(json)).toList();
+        quizzes.sort((a, b) {
+          if (a.createdAt == null || b.createdAt == null) return 0;
+          return a.createdAt!.compareTo(b.createdAt!);
+        });
         isLoadingQuizzes = false;
       });
     } catch (e) {
@@ -151,23 +179,24 @@ class _ChaptersScreenState extends State<ChaptersScreen> {
                     const Padding(
                       padding: EdgeInsets.all(12),
                       child: Text(
-                        'No chapters found',
+                        'કોઈ પ્રકરણ નથી',
                         style: TextStyle(color: Colors.white),
                       ),
                     )
                   else
                     Container(
                       height: 50,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                       child: ListView.builder(
+                        controller: _chapterScrollController,
                         scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
                         itemCount: chapters.length,
                         itemBuilder: (context, index) {
-                          final chapter = chapters[index];
-                          final isSelected = selectedChapterCode == chapter.chapterCode;
+                          final isSelected = selectedChapterIndex == index;
                           
                           return GestureDetector(
-                            onTap: () => selectChapter(chapter.chapterCode, chapter.name),
+                            onTap: () => selectChapter(index),
                             child: Container(
                               margin: const EdgeInsets.only(right: 8),
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -208,8 +237,9 @@ class _ChaptersScreenState extends State<ChaptersScreen> {
           ),
           
           // Chapter title
-          if (selectedChapterName != null)
+          if (selectedChapterName != null && selectedChapterName!.isNotEmpty)
             Container(
+              width: double.infinity,
               margin: const EdgeInsets.all(16),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -230,6 +260,7 @@ class _ChaptersScreenState extends State<ChaptersScreen> {
                   color: widget.gradientColors[1],
                   fontWeight: FontWeight.w600,
                 ),
+                textAlign: TextAlign.center,
               ),
             ),
           
@@ -251,6 +282,8 @@ class _ChaptersScreenState extends State<ChaptersScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
+                            Icon(Icons.quiz_outlined, size: 64, color: Colors.grey),
+                            SizedBox(height: 16),
                             Text(
                               'આ પ્રકરણમાં કોઈ quiz નથી',
                               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -258,7 +291,7 @@ class _ChaptersScreenState extends State<ChaptersScreen> {
                             SizedBox(height: 8),
                             Text(
                               'Quiz જલ્દી LIVE થશે',
-                              style: TextStyle(fontSize: 14),
+                              style: TextStyle(fontSize: 14, color: Colors.grey),
                             ),
                           ],
                         ),
@@ -277,6 +310,7 @@ class _ChaptersScreenState extends State<ChaptersScreen> {
     );
   }
 
+  // ✅ UPDATED: Quiz card with share button
   Widget _buildQuizCard(Quiz quiz) {
     Color badgeColor;
     if (quiz.difficultyLevel == 'સરળ') {
@@ -287,36 +321,36 @@ class _ChaptersScreenState extends State<ChaptersScreen> {
       badgeColor = const Color(0xFFef4444);
     }
 
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => QuizEngineScreen(quizId: quiz.quizId),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: widget.gradientColors[0].withOpacity(0.3), width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: widget.gradientColors[0].withOpacity(0.15),
+            blurRadius: 15,
           ),
-        );
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: widget.gradientColors[0].withOpacity(0.3), width: 2),
-          boxShadow: [
-            BoxShadow(
-              color: widget.gradientColors[0].withOpacity(0.15),
-              blurRadius: 15,
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ✅ Title + Share + Badge row
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => QuizEngineScreen(quizId: quiz.quizId),
+                      ),
+                    );
+                  },
                   child: Text(
                     quiz.quizName,
                     style: TextStyle(
@@ -326,25 +360,61 @@ class _ChaptersScreenState extends State<ChaptersScreen> {
                     ),
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: badgeColor,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    quiz.difficultyLevel,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
+              ),
+              // ✅ Share button
+              IconButton(
+                icon: Icon(
+                  Icons.share_outlined,
+                  color: widget.gradientColors[1],
+                  size: 20,
+                ),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: () {
+                  showShareSheet(
+                    context,
+                    ShareContent(
+                      type: 'link',
+                      link: 'https://kapilalearning.vercel.app/quiz/${quiz.quizId}',
+                      text: '🎯 ${quiz.quizName}\n'
+                            '📚 ${widget.subjectName} - પ્રકરણ ${selectedChapterIndex + 1}\n'
+                            '⏱️ ${quiz.timeLimit} મિનિટ | ${quiz.totalQuestions} પ્રશ્નો\n'
+                            '🔥 Level: ${quiz.difficultyLevel}',
                     ),
+                  );
+                },
+              ),
+              const SizedBox(width: 8),
+              // Badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: badgeColor,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  quiz.difficultyLevel,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // Info row (clickable)
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => QuizEngineScreen(quizId: quiz.quizId),
+                ),
+              );
+            },
+            child: Row(
               children: [
                 const Icon(Icons.quiz, size: 16, color: Color(0xFF3f6212)),
                 const SizedBox(width: 6),
@@ -361,8 +431,8 @@ class _ChaptersScreenState extends State<ChaptersScreen> {
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

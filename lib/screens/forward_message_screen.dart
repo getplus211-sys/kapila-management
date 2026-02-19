@@ -1,14 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/chat_model.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import '../models/chat_model.dart';
-import '../utils/error_handler.dart';
+import '../models/chat_item.dart';
+import '../models/message_model.dart';
+import '../services/local_storage_service.dart';
+
+const _kBg      = Color(0xFF0B0E1A);
+const _kSurface = Color(0xFF141828);
+const _kSurf2   = Color(0xFF1C2035);
+const _kBrand   = Color(0xFF7B4FD6);
+const _kAccent  = Color(0xFF9B6FF0);
+const _kText1   = Color(0xFFEEEEF5);
+const _kText2   = Color(0xFF8890AA);
+const _kBorder  = Color(0xFF252A40);
 
 class ForwardMessageScreen extends StatefulWidget {
-  final List<Message> messages;
+  final Message message;
 
-  const ForwardMessageScreen({super.key, required this.messages});
+  const ForwardMessageScreen({super.key, required this.message});
 
   @override
   State<ForwardMessageScreen> createState() => _ForwardMessageScreenState();
@@ -16,18 +24,19 @@ class ForwardMessageScreen extends StatefulWidget {
 
 class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
   final _supabase = Supabase.instance.client;
-  final Set<String> _selectedChats = {};
+  final _storage = LocalStorageService();
   final _searchController = TextEditingController();
-  List<Map<String, dynamic>> _chats = [];
-  List<Map<String, dynamic>> _filteredChats = [];
+
+  List<ChatItem> _chats = [];
+  List<ChatItem> _filteredChats = [];
+  List<String> _selectedChatIds = [];
   bool _isLoading = true;
-  bool _isForwarding = false;
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
     _loadChats();
-    _searchController.addListener(_filterChats);
   }
 
   @override
@@ -38,278 +47,207 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
 
   Future<void> _loadChats() async {
     try {
-      final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) return;
-
-      final response = await _supabase
-          .from('ngm_chat_participants')
-          .select('''
-            chat_id,
-            ngm_chats!inner(
-              chat_id,
-              chat_type,
-              last_message_at
-            )
-          ''')
-          .eq('user_id', userId)
-          .eq('is_active', true)
-          .order('ngm_chats.last_message_at', ascending: false);
-
-      final List<Map<String, dynamic>> chatsList = [];
-
-      for (var item in response) {
-        final chatId = item['chat_id'];
-        final chatType = item['ngm_chats']['chat_type'];
-        
-        String chatName = 'Unknown';
-        String? chatAvatar;
-
-        if (chatType == 'private') {
-          // Get other user info
-          final otherUserParticipant = await _supabase
-              .from('ngm_chat_participants')
-              .select('user_id')
-              .eq('chat_id', chatId)
-              .neq('user_id', userId)
-              .maybeSingle();
-
-          if (otherUserParticipant != null) {
-            final otherUser = await _supabase
-                .from('ngm_users')
-                .select('full_name, username, profile_picture_url')
-                .eq('user_id', otherUserParticipant['user_id'])
-                .single();
-
-            chatName = otherUser['full_name'] ?? otherUser['username'] ?? 'User';
-            chatAvatar = otherUser['profile_picture_url'];
-          }
-        } else if (chatType == 'group') {
-          final group = await _supabase
-              .from('ngm_groups')
-              .select('group_name, group_picture_url')
-              .eq('chat_id', chatId)
-              .single();
-
-          chatName = group['group_name'];
-          chatAvatar = group['group_picture_url'];
-        } else if (chatType == 'channel') {
-          final channel = await _supabase
-              .from('ngm_channels')
-              .select('channel_name, channel_picture_url')
-              .eq('chat_id', chatId)
-              .single();
-
-          chatName = channel['channel_name'];
-          chatAvatar = channel['channel_picture_url'];
-        }
-
-        chatsList.add({
-          'chat_id': chatId,
-          'chat_type': chatType,
-          'chat_name': chatName,
-          'chat_avatar': chatAvatar,
-        });
-      }
-
-      if (mounted) {
+      final cached = _storage.getCachedChatList();
+      if (cached != null) {
         setState(() {
-          _chats = chatsList;
-          _filteredChats = chatsList;
+          _chats = cached
+              .where((c) => c['chatId'] != 'saved_messages')
+              .map((c) => ChatItem(
+                    chatId: c['chatId'],
+                    chatType: ChatType.values.firstWhere((e) => e.toString() == c['chatType']),
+                    name: c['name'],
+                    avatarUrl: c['avatarUrl'],
+                    lastMessage: c['lastMessage'] ?? '',
+                    lastMessageTime: DateTime.parse(c['lastMessageTime']),
+                    unreadCount: 0,
+                    isPinned: false,
+                    isMuted: false,
+                  ))
+              .toList();
+          _filteredChats = _chats;
           _isLoading = false;
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        ErrorHandler.showError(context, ErrorHandler.handleError(e));
-      }
+      debugPrint('Error loading chats: $e');
+      setState(() => _isLoading = false);
     }
   }
 
-  void _filterChats() {
-    final query = _searchController.text.toLowerCase();
+  void _filterChats(String query) {
     setState(() {
-      _filteredChats = _chats.where((chat) {
-        final name = (chat['chat_name'] as String).toLowerCase();
-        return name.contains(query);
-      }).toList();
+      _searchQuery = query;
+      if (query.isEmpty) {
+        _filteredChats = _chats;
+      } else {
+        _filteredChats = _chats
+            .where((chat) => chat.name.toLowerCase().contains(query.toLowerCase()))
+            .toList();
+      }
     });
   }
 
-  Future<void> _forwardMessages() async {
-    if (_selectedChats.isEmpty) return;
+  void _toggleSelection(String chatId) {
+    setState(() {
+      if (_selectedChatIds.contains(chatId)) {
+        _selectedChatIds.remove(chatId);
+      } else {
+        if (_selectedChatIds.length < 5) {
+          _selectedChatIds.add(chatId);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Maximum 5 chats')),
+          );
+        }
+      }
+    });
+  }
 
-    setState(() => _isForwarding = true);
+  Future<void> _forwardMessage() async {
+    if (_selectedChatIds.isEmpty) return;
 
     try {
       final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) throw AppError('User not authenticated');
+      if (userId == null) return;
 
-      for (final chatId in _selectedChats) {
-        for (final message in widget.messages) {
-          await _supabase.from('ngm_messages').insert({
-            'chat_id': chatId,
-            'sender_id': userId,
-            'message_type': message.messageType,
-            'content': message.content,
-            'media_url': message.mediaUrl,
-            'is_forwarded': true,
-            'forwarded_from_user_id': message.senderId,
-            'created_at': DateTime.now().toIso8601String(),
-            'is_delivered': true,
-            'is_read_by_all': false,
-          });
+      Navigator.pop(context);
 
-          // Update chat last_message_at
-          await _supabase.from('ngm_chats').update({
-            'last_message_at': DateTime.now().toIso8601String(),
-          }).eq('chat_id', chatId);
-        }
+      for (final chatId in _selectedChatIds) {
+        await _supabase.from('ngm_messages').insert({
+          'chat_id': chatId,
+          'sender_id': userId,
+          'message_type': widget.message.messageType,
+          'content': widget.message.content,
+          'media_url': widget.message.mediaUrl,
+          'is_forwarded': true,
+          'forwarded_from_user_id': widget.message.senderId,
+          'created_at': DateTime.now().toIso8601String(),
+        });
       }
 
       if (mounted) {
-        ErrorHandler.showSuccess(
-          context,
-          'Forwarded to ${_selectedChats.length} chat(s)',
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Forwarded to ${_selectedChatIds.length} chat(s)'),
+            backgroundColor: Colors.green,
+          ),
         );
-        Navigator.pop(context);
       }
     } catch (e) {
-      if (mounted) {
-        ErrorHandler.showError(context, ErrorHandler.handleError(e));
-      }
-    } finally {
-      if (mounted) setState(() => _isForwarding = false);
+      debugPrint('Error forwarding: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: _kBg,
       appBar: AppBar(
-        title: Text('Forward ${widget.messages.length} message(s)'),
-        backgroundColor: const Color(0xFFFF6F00),
-        foregroundColor: Colors.white,
+        backgroundColor: _kSurface,
+        foregroundColor: _kText1,
+        title: Text(_selectedChatIds.isEmpty
+            ? 'Forward to...'
+            : '${_selectedChatIds.length} selected'),
         actions: [
-          if (_selectedChats.isNotEmpty)
+          if (_selectedChatIds.isNotEmpty)
             IconButton(
-              icon: _isForwarding
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : const Icon(Icons.send),
-              onPressed: _isForwarding ? null : _forwardMessages,
+              icon: const Icon(Icons.send),
+              onPressed: _forwardMessage,
             ),
         ],
       ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(16),
             child: TextField(
               controller: _searchController,
+              onChanged: _filterChats,
+              style: const TextStyle(color: _kText1),
               decoration: InputDecoration(
                 hintText: 'Search chats...',
-                prefixIcon: const Icon(Icons.search),
+                hintStyle: const TextStyle(color: _kText2),
+                prefixIcon: const Icon(Icons.search, color: _kText2),
+                filled: true,
+                fillColor: _kSurf2,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(25),
+                  borderSide: BorderSide.none,
                 ),
-                filled: true,
-                fillColor: Colors.grey[100],
               ),
             ),
           ),
-          if (_selectedChats.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: const Color(0xFFFF6F00).withOpacity(0.1),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      '${_selectedChats.length} chat(s) selected',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFFFF6F00),
-                      ),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () => setState(() => _selectedChats.clear()),
-                    child: const Text('Clear'),
-                  ),
-                ],
-              ),
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: _kSurf2,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _kBorder),
             ),
+            child: Row(
+              children: [
+                Icon(_getMessageIcon(), color: _kBrand, size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    widget.message.content ?? 'Media',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: _kText1, fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+          ),
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: CircularProgressIndicator(color: _kBrand))
                 : _filteredChats.isEmpty
                     ? const Center(
-                        child: Text('No chats found'),
-                      )
+                        child: Text('No chats found', style: TextStyle(color: _kText2)))
                     : ListView.builder(
                         itemCount: _filteredChats.length,
                         itemBuilder: (context, index) {
                           final chat = _filteredChats[index];
-                          final chatId = chat['chat_id'] as String;
-                          final isSelected = _selectedChats.contains(chatId);
-
+                          final isSelected = _selectedChatIds.contains(chat.chatId);
                           return ListTile(
-                            leading: CircleAvatar(
-                              backgroundImage: chat['chat_avatar'] != null
-                                  ? CachedNetworkImageProvider(
-                                      chat['chat_avatar'],
-                                    )
-                                  : null,
-                              backgroundColor: const Color(0xFFFF6F00),
-                              child: chat['chat_avatar'] == null
-                                  ? Icon(
-                                      chat['chat_type'] == 'private'
-                                          ? Icons.person
-                                          : chat['chat_type'] == 'group'
-                                              ? Icons.group
-                                              : Icons.campaign,
-                                      color: Colors.white,
-                                    )
-                                  : null,
+                            leading: Stack(
+                              children: [
+                                CircleAvatar(
+                                  backgroundColor: _kBrand,
+                                  backgroundImage: chat.avatarUrl != null
+                                      ? NetworkImage(chat.avatarUrl!)
+                                      : null,
+                                  child: chat.avatarUrl == null
+                                      ? Text(chat.name[0].toUpperCase(),
+                                          style: const TextStyle(color: Colors.white))
+                                      : null,
+                                ),
+                                if (isSelected)
+                                  Positioned.fill(
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: _kBrand.withOpacity(0.7),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(Icons.check,
+                                          color: Colors.white, size: 20),
+                                    ),
+                                  ),
+                              ],
                             ),
-                            title: Text(chat['chat_name'] ?? 'Unknown'),
-                            subtitle: Text(
-                              chat['chat_type'] == 'private'
-                                  ? 'Private chat'
-                                  : chat['chat_type'] == 'group'
-                                      ? 'Group'
-                                      : 'Channel',
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                            trailing: Checkbox(
-                              value: isSelected,
-                              onChanged: (val) {
-                                setState(() {
-                                  if (val == true) {
-                                    _selectedChats.add(chatId);
-                                  } else {
-                                    _selectedChats.remove(chatId);
-                                  }
-                                });
-                              },
-                              activeColor: const Color(0xFFFF6F00),
-                            ),
-                            onTap: () {
-                              setState(() {
-                                if (isSelected) {
-                                  _selectedChats.remove(chatId);
-                                } else {
-                                  _selectedChats.add(chatId);
-                                }
-                              });
-                            },
+                            title: Text(chat.name,
+                                style: const TextStyle(
+                                    color: _kText1, fontWeight: FontWeight.w600)),
+                            subtitle: Text(chat.lastMessage,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(color: _kText2, fontSize: 12)),
+                            onTap: () => _toggleSelection(chat.chatId),
+                            tileColor: isSelected ? _kBrand.withOpacity(0.1) : null,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
                           );
                         },
                       ),
@@ -317,5 +255,14 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
         ],
       ),
     );
+  }
+
+  IconData _getMessageIcon() {
+    switch (widget.message.messageType) {
+      case 'image': return Icons.image;
+      case 'video': return Icons.videocam;
+      case 'file': return Icons.insert_drive_file;
+      default: return Icons.text_fields;
+    }
   }
 }

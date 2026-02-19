@@ -49,12 +49,22 @@ android {
         multiDexEnabled true
     }
 
-    buildTypes {
+    // ✅ NEW: Release Signing Config
+    signingConfigs {
         release {
-            signingConfig signingConfigs.debug
+            keyAlias 'kapila'
+            keyPassword 'Sudama@2510'        // ← તમારો password
+            storeFile file('C:/Users/Admin/kapila-keystore.jks')
+            storePassword 'Sudama@2510'      // ← તમારો password
         }
     }
-    
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release         // ← debug થી release કર્યું
+        }
+    }
+
     buildFeatures {
         buildConfig = true
     }

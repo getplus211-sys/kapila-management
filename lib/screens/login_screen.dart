@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'signup_screen.dart';
+import 'forgot_password_screen.dart';   // ← NEW
 import '../main.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -64,14 +65,15 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF0B0E1A),
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Colors.blue.shade400,
-              Colors.purple.shade400,
+              Color(0xFF0B0E1A),
+              Color(0xFF1C2035),
             ],
           ),
         ),
@@ -87,11 +89,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     width: 120,
                     height: 120,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: const Color(0xFF141828),
                       shape: BoxShape.circle,
+                      border: Border.all(
+                        color: const Color(0xFF7B4FD6),
+                        width: 2,
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
+                          color: const Color(0xFF7B4FD6).withOpacity(0.3),
                           blurRadius: 20,
                           offset: const Offset(0, 10),
                         ),
@@ -103,20 +109,20 @@ class _LoginScreenState extends State<LoginScreen> {
                         style: TextStyle(
                           fontSize: 48,
                           fontWeight: FontWeight.bold,
-                          color: Colors.blue,
+                          color: Color(0xFF9B6FF0),
                         ),
                       ),
                     ),
                   ),
                   const SizedBox(height: 30),
-                  
+
                   // Title
                   const Text(
                     'KAPILA Learning',
                     style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: Color(0xFFEEEEF5),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -124,20 +130,24 @@ class _LoginScreenState extends State<LoginScreen> {
                     'તમારી સફળતા અમારો ધ્યેય',
                     style: TextStyle(
                       fontSize: 16,
-                      color: Colors.white70,
+                      color: Color(0xFF8890AA),
                     ),
                   ),
                   const SizedBox(height: 50),
-                  
+
                   // Login Card
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: const Color(0xFF141828),
                       borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: const Color(0xFF252A40),
+                        width: 1,
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withOpacity(0.4),
                           blurRadius: 20,
                           offset: const Offset(0, 10),
                         ),
@@ -151,40 +161,54 @@ class _LoginScreenState extends State<LoginScreen> {
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                            color: Color(0xFFEEEEF5),
                           ),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 30),
-                        
+
                         // Email Field
                         TextField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
+                          style: const TextStyle(color: Color(0xFFEEEEF5)),
                           decoration: InputDecoration(
                             labelText: 'Email',
-                            prefixIcon: const Icon(Icons.email),
+                            labelStyle: const TextStyle(color: Color(0xFF8890AA)),
+                            prefixIcon: const Icon(Icons.email, color: Color(0xFF8890AA)),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: Color(0xFF252A40)),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: Color(0xFF252A40)),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: Color(0xFF7B4FD6), width: 2),
                             ),
                             filled: true,
-                            fillColor: Colors.grey.shade50,
+                            fillColor: const Color(0xFF1C2035),
                           ),
                         ),
                         const SizedBox(height: 20),
-                        
+
                         // Password Field
                         TextField(
                           controller: _passwordController,
                           obscureText: _obscurePassword,
+                          style: const TextStyle(color: Color(0xFFEEEEF5)),
                           decoration: InputDecoration(
                             labelText: 'Password',
-                            prefixIcon: const Icon(Icons.lock),
+                            labelStyle: const TextStyle(color: Color(0xFF8890AA)),
+                            prefixIcon: const Icon(Icons.lock, color: Color(0xFF8890AA)),
                             suffixIcon: IconButton(
                               icon: Icon(
                                 _obscurePassword
                                     ? Icons.visibility_off
                                     : Icons.visibility,
+                                color: const Color(0xFF8890AA),
                               ),
                               onPressed: () {
                                 setState(() {
@@ -194,24 +218,59 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: Color(0xFF252A40)),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: Color(0xFF252A40)),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: Color(0xFF7B4FD6), width: 2),
                             ),
                             filled: true,
-                            fillColor: Colors.grey.shade50,
+                            fillColor: const Color(0xFF1C2035),
                           ),
                         ),
-                        const SizedBox(height: 30),
-                        
+
+                        // Forgot Password Link
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => ForgotPasswordScreen(
+                                    initialEmail: _emailController.text.trim(),
+                                  ),
+                                ),
+                              );
+                            },
+                            child: const Text(
+                              'Password ભૂલ્યા?',
+                              style: TextStyle(
+                                color: Color(0xFF9B6FF0),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 10),
+
                         // Login Button
                         ElevatedButton(
                           onPressed: _isLoading ? null : _login,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
+                            backgroundColor: const Color(0xFF7B4FD6),
                             foregroundColor: Colors.white,
+                            disabledBackgroundColor: const Color(0xFF7B4FD6).withOpacity(0.5),
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            elevation: 2,
+                            elevation: 4,
+                            shadowColor: const Color(0xFF7B4FD6).withOpacity(0.4),
                           ),
                           child: _isLoading
                               ? const SizedBox(
@@ -232,14 +291,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                         ),
                         const SizedBox(height: 20),
-                        
+
                         // Signup Link
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const Text(
                               'નવા છો? ',
-                              style: TextStyle(color: Colors.black54),
+                              style: TextStyle(color: Color(0xFF8890AA)),
                             ),
                             TextButton(
                               onPressed: () {
@@ -252,6 +311,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               child: const Text(
                                 'Sign Up કરો',
                                 style: TextStyle(
+                                  color: Color(0xFF9B6FF0),
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
                                 ),

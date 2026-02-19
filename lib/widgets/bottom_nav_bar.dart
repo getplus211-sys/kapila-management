@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'dart:ui';
+import '../screens/theme_provider.dart';
 
 class BottomNavBar extends StatelessWidget {
   final int currentIndex;
   final Function(int) onTap;
 
-  // 👇 User data
   final String? fullName;
   final String? username;
   final String? profilePictureUrl;
@@ -20,162 +22,119 @@ class BottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 12),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildNavItem(
-                icon: Icons.home,
-                label: 'Home',
-                index: 0,
-              ),
-              _buildNavItem(
-                icon: Icons.trending_up,
-                label: 'Performance',
-                index: 1,
-              ),
-              _buildNavItem(
-                icon: Icons.article,
-                label: 'Posts',
-                index: 2,
-              ),
-              _buildNavItem(
-                icon: Icons.chat_bubble,
-                label: 'Chat',
-                index: 3,
-              ),
+    final t = context.watch<ThemeProvider>();
 
-              // ✅ PROFILE (image / first letter)
-              _buildProfileNavItem(
-                label: 'Profile',
-                index: 4,
+    // ✅ TRUE GLASSMORPHIC: very low opacity so content bleeds through blur
+    final navBg         = t.isDark ? Colors.white.withOpacity(0.06) : Colors.white.withOpacity(0.20);
+    final activeTabBg   = t.isDark ? Colors.white.withOpacity(0.12) : t.brand.withOpacity(0.15);
+    final activeColor   = t.isDark ? const Color(0xFF38BDF8) : t.brand;
+    final inactiveColor = t.isDark ? Colors.white.withOpacity(0.55) : Colors.black.withOpacity(0.40);
+    final borderColor   = t.isDark ? Colors.white.withOpacity(0.12) : Colors.white.withOpacity(0.60);
+
+    return Container(
+      color: Colors.transparent,
+      padding: const EdgeInsets.only(left: 20, right: 20, bottom: 16, top: 8),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(50),
+        child: BackdropFilter(
+          // ✅ Strong blur — content shows through
+          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+          child: Container(
+            height: 68,
+            decoration: BoxDecoration(
+              color: navBg,
+              borderRadius: BorderRadius.circular(50),
+              border: Border.all(color: borderColor, width: 1.2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.25),
+                  blurRadius: 30,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _NavItem(icon: Icons.school_rounded,      label: 'KAPILA',      index: 0, currentIndex: currentIndex, onTap: onTap, activeColor: activeColor, activeTabBg: activeTabBg, inactiveColor: inactiveColor),
+                  _NavItem(icon: Icons.trending_up_rounded, label: 'Performance', index: 1, currentIndex: currentIndex, onTap: onTap, activeColor: activeColor, activeTabBg: activeTabBg, inactiveColor: inactiveColor),
+                  Container(
+                    width: 1, height: 28,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.transparent, borderColor, Colors.transparent],
+                        begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                      ),
+                    ),
+                  ),
+                  _NavItem(icon: Icons.article_rounded,     label: 'Posts', index: 2, currentIndex: currentIndex, onTap: onTap, activeColor: activeColor, activeTabBg: activeTabBg, inactiveColor: inactiveColor),
+                  _NavItem(icon: Icons.chat_bubble_rounded, label: 'Chat',  index: 3, currentIndex: currentIndex, onTap: onTap, activeColor: activeColor, activeTabBg: activeTabBg, inactiveColor: inactiveColor),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
+}
 
-  // ================= NORMAL NAV ITEM =================
-  Widget _buildNavItem({
-    required IconData icon,
-    required String label,
-    required int index,
-  }) {
+class _NavItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final int index;
+  final int currentIndex;
+  final Function(int) onTap;
+  final Color activeColor;
+  final Color activeTabBg;
+  final Color inactiveColor;
+
+  const _NavItem({
+    required this.icon,
+    required this.label,
+    required this.index,
+    required this.currentIndex,
+    required this.onTap,
+    required this.activeColor,
+    required this.activeTabBg,
+    required this.inactiveColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     final isActive = currentIndex == index;
 
     return GestureDetector(
       onTap: () => onTap(index),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            color: isActive ? Colors.orange : Colors.black,
-            size: 26,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: isActive ? Colors.orange : Colors.black,
-              fontSize: 12,
-              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ================= PROFILE NAV ITEM =================
-  Widget _buildProfileNavItem({
-    required String label,
-    required int index,
-  }) {
-    final isActive = currentIndex == index;
-
-    return GestureDetector(
-      onTap: () => onTap(index),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildProfileAvatar(isActive),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: isActive ? Colors.orange : Colors.black,
-              fontSize: 12,
-              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ================= PROFILE AVATAR =================
-  Widget _buildProfileAvatar(bool isActive) {
-    final hasImage =
-        profilePictureUrl != null && profilePictureUrl!.trim().isNotEmpty;
-
-    return Container(
-      width: 28,
-      height: 28,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: Colors.grey.shade300,
-        border: Border.all(
-          color: isActive ? Colors.orange : Colors.transparent,
-          width: 1.5,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeInOut,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+        decoration: BoxDecoration(
+          color: isActive ? activeTabBg : Colors.transparent,
+          borderRadius: BorderRadius.circular(40),
+          border: isActive
+              ? Border.all(color: activeColor.withOpacity(0.25), width: 1)
+              : null,
         ),
-      ),
-      child: hasImage
-          ? ClipOval(
-              child: Image.network(
-                profilePictureUrl!,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _buildInitialText(),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: isActive ? activeColor : inactiveColor, size: 22),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                color: isActive ? activeColor : inactiveColor,
+                fontSize: 10,
+                fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
+                letterSpacing: 0.1,
               ),
-            )
-          : _buildInitialText(),
-    );
-  }
-
-  // ================= FIRST LETTER (FIXED) =================
-  Widget _buildInitialText() {
-    String letter = '?';
-
-    // 👇 SAFE + GUARANTEED LOGIC
-    final name = (fullName ?? username ?? '').trim();
-
-    if (name.isNotEmpty) {
-      // Handles spaces like "Kapil Patel"
-      letter = name.split(RegExp(r'\s+')).first[0].toUpperCase();
-    }
-
-    return Center(
-      child: Text(
-        letter,
-        style: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.bold,
-          color: Colors.black,
+            ),
+          ],
         ),
       ),
     );

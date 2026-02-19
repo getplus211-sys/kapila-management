@@ -3,39 +3,46 @@ import 'package:intl/intl.dart';
 class DateUtil {
   static String formatMessageTime(DateTime dateTime) {
     final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final messageDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
+    final diff = now.difference(dateTime);
     
-    if (messageDate == today) {
+    // Under 24 hours - show time
+    if (diff.inHours < 24) {
       return DateFormat('HH:mm').format(dateTime);
-    } else if (messageDate == today.subtract(const Duration(days: 1))) {
-      return 'Yesterday';
-    } else if (now.difference(dateTime).inDays < 7) {
-      return DateFormat('EEEE').format(dateTime);
-    } else {
-      return DateFormat('dd/MM/yyyy').format(dateTime);
     }
+    
+    // Same year - show date + time
+    if (dateTime.year == now.year) {
+      return DateFormat('dd MMM, HH:mm').format(dateTime);
+    }
+    
+    // Different year - full date + time
+    return DateFormat('dd/MM/yyyy HH:mm').format(dateTime);
   }
 
   static String formatLastSeen(DateTime? lastSeen) {
     if (lastSeen == null) return 'Long time ago';
     
     final now = DateTime.now();
-    final difference = now.difference(lastSeen);
+    final diff = now.difference(lastSeen);
     
-    if (difference.inMinutes < 1) {
-      return 'Just now';
-    } else if (difference.inMinutes < 60) {
-      return '${difference.inMinutes} minutes ago';
-    } else if (difference.inHours < 24) {
-      return '${difference.inHours} hours ago';
-    } else if (difference.inDays == 1) {
-      return 'Yesterday at ${DateFormat('HH:mm').format(lastSeen)}';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays} days ago';
-    } else {
-      return DateFormat('dd MMM yyyy').format(lastSeen);
+    if (diff.inSeconds < 30) return 'Last seen recently';
+    if (diff.inMinutes < 1) return 'Last seen just now';
+    if (diff.inMinutes == 1) return 'Last seen 1 minute ago';
+    if (diff.inMinutes < 60) return 'Last seen ${diff.inMinutes} minutes ago';
+    if (diff.inHours == 1) return 'Last seen 1 hour ago';
+    if (diff.inHours < 24) return 'Last seen ${diff.inHours} hours ago';
+    if (diff.inDays == 1) return 'Last seen yesterday';
+    if (diff.inDays < 7) return 'Last seen ${diff.inDays} days ago';
+    if (diff.inDays < 30) {
+      final weeks = (diff.inDays / 7).floor();
+      return 'Last seen $weeks week${weeks > 1 ? 's' : ''} ago';
     }
+    if (diff.inDays < 365) {
+      final months = (diff.inDays / 30).floor();
+      return 'Last seen $months month${months > 1 ? 's' : ''} ago';
+    }
+    final years = (diff.inDays / 365).floor();
+    return 'Last seen $years year${years > 1 ? 's' : ''} ago';
   }
 
   static String getDateDivider(DateTime dateTime) {
