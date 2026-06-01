@@ -47,6 +47,26 @@ type SeriesMockMapRow = {
   } | null
 }
 
+type SeriesMockMapApiRow = {
+  test_series_id: string
+  mock_test_id: string
+  display_order: number
+  kls_mock_tests:
+    | {
+        mock_name?: string
+        is_active: boolean
+        is_live: boolean
+        is_paused: boolean
+      }
+    | {
+        mock_name?: string
+        is_active: boolean
+        is_live: boolean
+        is_paused: boolean
+      }[]
+    | null
+}
+
 type SubjectRow = {
   id: string
   name: string
@@ -167,7 +187,15 @@ export default function TestSeriesPage() {
     const eRows = (eRes.data ?? []) as ExamRow[]
     const sRows = (sRes.data ?? []) as SeriesRow[]
     const mRows = (mRes.data ?? []) as MockRow[]
-    const mappingRows = (mapRes.data ?? []) as SeriesMockMapRow[]
+    const mappingApiRows = (mapRes.data ?? []) as SeriesMockMapApiRow[]
+    const mappingRows = mappingApiRows.map((row) => ({
+      test_series_id: row.test_series_id,
+      mock_test_id: row.mock_test_id,
+      display_order: row.display_order,
+      kls_mock_tests: Array.isArray(row.kls_mock_tests)
+        ? (row.kls_mock_tests[0] ?? null)
+        : row.kls_mock_tests,
+    })) as SeriesMockMapRow[]
 
     const liveMap: Record<string, boolean> = {}
     for (const row of mappingRows) {
