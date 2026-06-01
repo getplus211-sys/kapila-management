@@ -250,6 +250,11 @@ export default function HomePage() {
                 </Link>
               </>
             ) : null}
+            {role === 'owner' || role === 'admin' ? (
+              <Link href='/daily-learning' className='kap-module-card kap-mod-series'>
+                <span className='kap-module-title'>Daily Learning Manager</span>
+              </Link>
+            ) : null}
             {role === 'owner' ? (
               <Link href='/admin-users' className='kap-module-card kap-mod-admin'>
                 <span className='kap-module-title'>Admin Users</span>
