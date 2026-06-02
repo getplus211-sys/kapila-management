@@ -32,6 +32,13 @@ type SeriesMockMapRow = {
   kls_mock_tests: MockMini
 }
 
+type SeriesMockMapApiRow = {
+  test_series_id: string
+  mock_test_id: string
+  display_order: number
+  kls_mock_tests: MockMini | MockMini[] | null
+}
+
 type MockQuestionRow = {
   mock_question_id: string
   mock_test_id: string
@@ -114,7 +121,15 @@ export default function AllQuestionsPage() {
     const eRows = (eRes.data ?? []) as ExamRow[]
     const sRows = (sRes.data ?? []) as SeriesRow[]
     const mRows = (mRes.data ?? []) as MockMini[]
-    const mapRows = (mapRes.data ?? []) as SeriesMockMapRow[]
+    const mapApiRows = (mapRes.data ?? []) as SeriesMockMapApiRow[]
+    const mapRows: SeriesMockMapRow[] = mapApiRows.map((row) => ({
+      test_series_id: row.test_series_id,
+      mock_test_id: row.mock_test_id,
+      display_order: row.display_order,
+      kls_mock_tests: Array.isArray(row.kls_mock_tests)
+        ? (row.kls_mock_tests[0] ?? null)
+        : row.kls_mock_tests,
+    }))
 
     setExams(eRows)
     setSeriesRows(sRows)
