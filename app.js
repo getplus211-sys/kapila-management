@@ -2,50 +2,43 @@ const config = window.ADMIN_PANEL_CONFIG || {}
 const supabaseUrl = config.supabaseUrl || ''
 const supabaseAnonKey = config.supabaseAnonKey || ''
 
-const authScreen = document.getElementById('authScreen')
 const authNote = document.getElementById('authNote')
-const loginForm = document.getElementById('loginForm')
+const loginCard = document.getElementById('loginCard')
+const dashboardCard = document.getElementById('dashboardCard')
+const statusCard = document.getElementById('statusCard')
 const emailInput = document.getElementById('emailInput')
 const passwordInput = document.getElementById('passwordInput')
+const loginBtn = document.getElementById('loginBtn')
 const signOutBtn = document.getElementById('signOutBtn')
 const sessionLabel = document.getElementById('sessionLabel')
 const sessionSubLabel = document.getElementById('sessionSubLabel')
+const sessionDetail = document.getElementById('sessionDetail')
+const roleDetail = document.getElementById('roleDetail')
+const messageDetail = document.getElementById('messageDetail')
 const userEmail = document.getElementById('userEmail')
+const roleTitle = document.getElementById('roleTitle')
 const connectionPill = document.getElementById('connectionPill')
-const pageTitle = document.getElementById('pageTitle')
-const sidebar = document.getElementById('sidebar')
-const openSidebar = document.getElementById('openSidebar')
-const closeSidebar = document.getElementById('closeSidebar')
-
-const sections = Array.from(document.querySelectorAll('[data-section]'))
-const navLinks = Array.from(document.querySelectorAll('[data-section-link]'))
+const verificationBadge = document.getElementById('verificationBadge')
+const reportsBadge = document.getElementById('reportsBadge')
+const nonEduBadge = document.getElementById('nonEduBadge')
+const suggestionsBadge = document.getElementById('suggestionsBadge')
+const moduleLinks = Array.from(document.querySelectorAll('.module-link'))
 
 let supabase = null
+let currentRole = null
 
-const state = {
-  user: null,
-  sessionReady: false,
-}
-
-function showSection(name) {
-  const sectionName = name || 'dashboard'
-
-  sections.forEach((section) => {
-    section.classList.toggle('active', section.dataset.section === sectionName)
-  })
-
-  navLinks.forEach((link) => {
-    link.classList.toggle('active', link.dataset.sectionLink === sectionName)
-  })
-
-  const activeLabel = navLinks.find((link) => link.dataset.sectionLink === sectionName)?.textContent || 'Dashboard'
-  pageTitle.textContent = activeLabel
+function setMessage(message, isError = true) {
+  if (!messageDetail) return
+  messageDetail.textContent = message || '-'
+  if (authNote) {
+    authNote.textContent = message || (isError ? 'Action needed.' : 'Connected.')
+  }
 }
 
 function setConnectionStatus(connected, message) {
   connectionPill.textContent = connected ? 'Connected' : 'Disconnected'
   connectionPill.className = `pill ${connected ? 'pill-success' : 'pill-danger'}`
-  authNote.textContent = message || (connected ? 'Connected to Supabase.' : 'Add Supabase config in config.js.')
+  setMessage(message, !connected)
 }
 
 function isValidHttpUrl(value) {
@@ -57,194 +50,212 @@ function isValidHttpUrl(value) {
   }
 }
 
-function showApp(visible) {
-  authScreen.classList.toggle('hidden', visible)
-  document.querySelector('.app-shell').classList.toggle('hidden', !visible)
+function getRoleFromAccessData(data) {
+  if (!data || data.is_active !== true) return null
+  return data.role || null
 }
 
-async function fetchCount(tableName) {
-  const { count, error } = await supabase.from(tableName).select('*', { head: true, count: 'exact' })
-  return { count: count ?? 0, error }
+async function getCurrentUser() {
+  const { data: sessionData } = await supabase.auth.getSession()
+  if (sessionData.session?.user) return sessionData.session.user
+  const { data: authData } = await supabase.auth.getUser()
+  return authData.user ?? null
 }
 
-async function fetchRows(tableName, columns, limit = 5) {
-  const { data, error } = await supabase.from(tableName).select(columns).limit(limit)
-  return { data: data ?? [], error }
+async function getAdminAccess() {
+  const user = await getCurrentUser()
+  if (!user) return { user: null, role: null }
+
+  const { data, error } = await supabase
+    .from('ngm_admin_roles')
+    .select('role,is_active')
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (error) return { user, role: null, error }
+  return { user, role: getRoleFromAccessData(data), error: null }
 }
 
-function renderList(container, rows, fallbackLabel) {
-  container.innerHTML = rows.length
-    ? rows
-        .map((row) => `<div class="list-item"><strong>${row.title}</strong><span>${row.detail}</span></div>`)
-        .join('')
-    : `<div class="list-item"><strong>${fallbackLabel}</strong><span>No rows returned.</span></div>`
-}
-
-async function loadDashboard() {
-  if (!supabase) return
-
-  const counts = await Promise.all([
-    fetchCount('kls_exams'),
-    fetchCount('kls_test_series'),
-    fetchCount('kls_mock_tests'),
-    fetchCount('ngm_users'),
-    fetchCount('ngm_verification_requests'),
-    fetchCount('ngm_report_replies'),
-  ])
-
-  const cardValues = document.querySelectorAll('.card strong')
-  const metrics = [
-    counts[3].count,
-    counts[4].count,
-    '4 plans',
-    counts[1].count,
-  ]
-  cardValues.forEach((node, index) => {
-    if (metrics[index] !== undefined) node.textContent = String(metrics[index])
-  })
-
-  const [adminsRes, verifiedRes, seriesRes, mocksRes] = await Promise.all([
-    fetchRows('ngm_users', 'user_name, email, account_role, is_verified', 3),
-    fetchRows('ngm_users', 'user_name, email, is_verified', 3),
-    fetchRows('kls_test_series', 'series_name, exam_code, is_active, created_at', 3),
-    fetchRows('kls_mock_tests', 'mock_name, exam_code, is_active, is_live, is_paused, created_at', 3),
-  ])
-
-  const adminList = document.querySelector('#admin-users .list-grid') || null
-  if (adminList) {
-    renderList(
-      adminList,
-      (adminsRes.data || []).map((row) => ({
-        title: row.user_name || row.email || 'Admin',
-        detail: `${row.account_role || 'role'} • ${row.is_verified ? 'verified' : 'pending'}`,
-      })),
-      'No admin rows'
-    )
-  }
-
-  const verifiedList = document.querySelector('#verified-users .list-grid')
-  if (verifiedList) {
-    renderList(
-      verifiedList,
-      (verifiedRes.data || []).map((row) => ({
-        title: row.user_name || row.email || 'User',
-        detail: row.is_verified ? 'Verified' : 'Not verified',
-      })),
-      'No verified users'
-    )
-  }
-
-  const testSeriesPanel = document.querySelector('#test-series .list-grid')
-  if (testSeriesPanel) {
-    renderList(
-      testSeriesPanel,
-      (seriesRes.data || []).map((row) => ({
-        title: row.series_name || 'Series',
-        detail: `${row.exam_code || 'exam'} • ${row.is_active ? 'active' : 'inactive'}`,
-      })),
-      'No series found'
-    )
-  }
-
-  const allQuestionsPanel = document.querySelector('#all-questions .panel')
-  if (allQuestionsPanel) {
-    const mockItems = (mocksRes.data || []).map((row, index) => (
-      `<div class="question-preview"><strong>Mock ${index + 1}</strong><p>${row.mock_name || 'Unnamed'} • ${row.exam_code || 'exam'}</p></div>`
-    ))
-    allQuestionsPanel.innerHTML = mockItems.join('') || '<div class="question-preview"><strong>No mocks</strong><p>No data available.</p></div>'
-  }
-}
-
-async function refreshSession(user) {
-  state.user = user || null
-
-  if (!user) {
-    sessionLabel.textContent = 'Guest Mode'
-    sessionSubLabel.textContent = 'Not signed in'
-    userEmail.textContent = 'No active session.'
-    showApp(false)
+function setBadge(node, count) {
+  if (!node) return
+  const value = Number(count ?? 0)
+  if (value <= 0) {
+    node.classList.add('hidden')
+    node.textContent = ''
     return
   }
 
-  sessionLabel.textContent = 'Admin Session'
-  sessionSubLabel.textContent = user.email || 'Signed in'
-  userEmail.textContent = user.email || 'Authenticated user'
-  showApp(true)
-  showSection(window.location.hash.replace('#', '') || 'dashboard')
-  await loadDashboard()
+  node.classList.remove('hidden')
+  node.textContent = String(value)
 }
 
-function initNavigation() {
-  navLinks.forEach((link) => {
-    link.addEventListener('click', () => {
-      showSection(link.dataset.sectionLink)
-      if (window.innerWidth <= 1200) {
-        sidebar.classList.remove('open')
-      }
-    })
+function moduleAllowed(roles, role) {
+  const allowed = roles.split(',').map((item) => item.trim())
+  return allowed.includes(role || '')
+}
+
+function updateModuleVisibility(role) {
+  moduleLinks.forEach((link) => {
+    const roles = link.dataset.roles || ''
+    link.classList.toggle('hidden', !moduleAllowed(roles, role))
   })
+}
 
-  openSidebar?.addEventListener('click', () => sidebar.classList.add('open'))
-  closeSidebar?.addEventListener('click', () => sidebar.classList.remove('open'))
+async function fetchCount(tableName, buildQuery) {
+  const baseQuery = supabase.from(tableName).select('*', { head: true, count: 'exact' })
+  const query = typeof buildQuery === 'function' ? buildQuery(baseQuery) : baseQuery
+  const { count, error } = await query
+  if (error) throw error
+  return count ?? 0
+}
 
-  window.addEventListener('hashchange', () => {
-    showSection(window.location.hash.replace('#', ''))
+async function loadBadges() {
+  try {
+    const [verificationPending, reportsPending, suggestionsPending, nonEducationalReportsPending] = await Promise.all([
+      fetchCount('ngm_verification_requests', (q) => q.eq('status', 'pending')),
+      Promise.all([
+        fetchCount('ngm_post_reports', (q) => q.eq('status', 'pending')),
+        fetchCount('ngm_quiz_reports', (q) => q.eq('status', 'pending')),
+        fetchCount('ngm_poll_reports', (q) => q.eq('status', 'pending')),
+        fetchCount('ngm_user_reports', (q) => q.eq('status', 'pending')),
+      ]).then((values) => values.reduce((sum, value) => sum + value, 0)),
+      fetchCount('kls_questions', (q) => q.not('suggestion', 'is', null).neq('suggestion', '')).catch(() => 0),
+      supabase.rpc('ngm_admin_count_pending_non_educational_reports').then(({ data, error }) => {
+        if (error) throw error
+        return Number(data ?? 0)
+      }),
+    ])
+
+    setBadge(verificationBadge, verificationPending)
+    setBadge(reportsBadge, reportsPending)
+    setBadge(suggestionsBadge, suggestionsPending)
+    setBadge(nonEduBadge, nonEducationalReportsPending)
+  } catch (error) {
+    setMessage(error.message || 'Failed to load badge counts.')
+  }
+}
+
+async function loadDashboardMeta(user, role) {
+  sessionLabel.textContent = role ? 'Admin Session' : 'Guest Mode'
+  sessionSubLabel.textContent = user?.email || (role ? 'Signed in' : 'Not signed in')
+  sessionDetail.textContent = user?.email || 'No active session.'
+  roleDetail.textContent = role || '-'
+  userEmail.textContent = user?.email || 'Authenticated user'
+  roleTitle.textContent = role ? `${role.toUpperCase()} Access Granted` : 'Login to continue'
+  updateModuleVisibility(role)
+  loginCard.classList.toggle('hidden', Boolean(role))
+  dashboardCard.classList.toggle('hidden', !role)
+  statusCard.classList.toggle('hidden', !role)
+}
+
+async function refreshSession() {
+  const access = await getAdminAccess()
+  currentRole = access.role
+
+  if (access.error) {
+    setMessage(access.error.message || 'Access check failed.')
+  }
+
+  await loadDashboardMeta(access.user, access.role)
+
+  if (access.user && access.role) {
+    await loadBadges()
+    setMessage('Connected to Supabase.', false)
+    return
+  }
+
+  if (!access.user) {
+    setMessage('Sign in to continue.')
+  } else if (!access.role) {
+    setMessage('No admin access for this account.')
+  }
+}
+
+async function login() {
+  setMessage('')
+  const email = emailInput.value.trim()
+  const password = passwordInput.value
+
+  if (!email || !password) {
+    setMessage('Email and password required.')
+    return
+  }
+
+  loginBtn.disabled = true
+  loginBtn.textContent = 'Logging in...'
+  const { error } = await supabase.auth.signInWithPassword({ email, password })
+  loginBtn.disabled = false
+  loginBtn.textContent = 'Login'
+
+  if (error) {
+    setMessage(error.message)
+    return
+  }
+
+  await refreshSession()
+}
+
+async function logout() {
+  await supabase.auth.signOut()
+  currentRole = null
+  await refreshSession()
+}
+
+function initModuleLinks() {
+  moduleLinks.forEach((link) => {
+    link.addEventListener('click', (event) => {
+      event.preventDefault()
+      if (!currentRole) {
+        setMessage('Login required.')
+        return
+      }
+      setMessage(`${link.dataset.module} module opens in the Next.js version.`, false)
+    })
   })
 }
 
 async function init() {
   if (!supabaseUrl || !supabaseAnonKey) {
-    setConnectionStatus(false, 'Add your Supabase URL and anon key in config.js.')
-    showApp(false)
+    setConnectionStatus(false, 'Add Supabase URL and anon key in config.js.')
     return
   }
 
   if (!isValidHttpUrl(supabaseUrl)) {
-    setConnectionStatus(false, 'Supabase URL in config.js must start with http:// or https://.')
-    showApp(false)
+    setConnectionStatus(false, 'Supabase URL must start with http:// or https://.')
     return
   }
 
   if (!window.supabase?.createClient) {
     setConnectionStatus(false, 'Supabase library failed to load.')
-    showApp(false)
     return
   }
 
   supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey)
-  setConnectionStatus(true, 'Supabase client created successfully.')
-  initNavigation()
+  setConnectionStatus(true, 'Supabase connected.')
+  initModuleLinks()
 
-  const { data } = await supabase.auth.getSession()
-  state.sessionReady = true
-  await refreshSession(data.session?.user || null)
+  const { data: sessionData } = await supabase.auth.getSession()
+  await refreshSession(sessionData.session?.user || null)
 
-  supabase.auth.onAuthStateChange(async (_event, session) => {
-    await refreshSession(session?.user || null)
+  supabase.auth.onAuthStateChange(() => {
+    void refreshSession()
   })
 }
 
-loginForm?.addEventListener('submit', async (event) => {
-  event.preventDefault()
-  if (!supabase) return
-
-  authNote.textContent = 'Signing in...'
-  const email = emailInput.value.trim()
-  const password = passwordInput.value
-
-  const { error } = await supabase.auth.signInWithPassword({ email, password })
-  if (error) {
-    authNote.textContent = error.message
-    return
-  }
-
-  authNote.textContent = 'Signed in.'
+document.getElementById('loginBtn')?.addEventListener('click', () => {
+  void login()
 })
 
-signOutBtn?.addEventListener('click', async () => {
-  if (!supabase) return
-  await supabase.auth.signOut()
+signOutBtn?.addEventListener('click', () => {
+  void logout()
 })
 
-showApp(false)
+emailInput?.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') void login()
+})
+
+passwordInput?.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') void login()
+})
+
 void init()
