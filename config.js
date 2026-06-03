@@ -1,4 +1,4 @@
 window.ADMIN_PANEL_CONFIG = {
-  supabaseUrl: 'PASTE_YOUR_SUPABASE_URL_HERE',
-  supabaseAnonKey: 'PASTE_YOUR_SUPABASE_ANON_KEY_HERE',
+  supabaseUrl: 'https://bhmycvrbucmbbrpzeane.supabase.co',
+  supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJobXljdnJidWNtYmJycHplYW5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2OTQwOTYsImV4cCI6MjA4MDI3MDA5Nn0.qQ3bw9cADG0P8hbGwx76Oeg54l-9FbRWxc92nZdSPL4',
 }
