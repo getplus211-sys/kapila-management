@@ -3,425 +3,149 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nandifram Admin Panel</title>
+  <title>KAPiLA Management System</title>
   <link rel="stylesheet" href="styles.css">
   <script src="config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 </head>
 <body>
-  <section class="auth-screen" id="authScreen">
-    <div class="auth-card">
-      <div class="brand">
-        <div class="brand-mark">N</div>
+  <header class="site-header">
+    <div class="site-header-inner">
+      <div class="site-brand">
+        <div class="brand-mark">K</div>
         <div>
-          <h1>Nandifram</h1>
-          <p>Supabase Admin</p>
+          <div class="site-title">KAPiLA Management System</div>
+          <div class="site-subtitle">Admin Management Panel</div>
         </div>
       </div>
-      <h2>Sign in to continue</h2>
-      <p class="muted">Connect your Supabase project in <code>config.js</code>, then sign in with an admin account.</p>
-      <form id="loginForm" class="auth-form">
-        <input id="emailInput" class="input" type="email" placeholder="Admin email" autocomplete="email" required>
-        <input id="passwordInput" class="input" type="password" placeholder="Password" autocomplete="current-password" required>
-        <button class="primary-btn" type="submit">Sign In</button>
-      </form>
-      <p class="auth-note" id="authNote">Waiting for Supabase connection.</p>
+      <div class="site-header-actions">
+        <span class="pill pill-success" id="connectionPill">Disconnected</span>
+        <button class="secondary-btn" id="signOutBtn" type="button">Logout</button>
+      </div>
     </div>
-  </section>
+  </header>
 
-  <div class="app-shell">
-    <aside class="sidebar" id="sidebar">
-      <div class="brand">
-        <div class="brand-mark">N</div>
+  <main class="kap-wrap">
+    <section class="hero-card">
+      <div class="hero-copy">
+        <p class="eyebrow">Admin Panel</p>
+        <h1>Login and access the same dashboard flow as the Next.js app.</h1>
+        <p class="muted">Role-based modules, badge counts, and Supabase auth — kept in a simple static upload-friendly format.</p>
+      </div>
+      <div class="hero-side">
+        <div class="stat">
+          <span>Modules</span>
+          <strong>14+</strong>
+        </div>
+        <div class="stat">
+          <span>Status</span>
+          <strong id="sessionLabel">Guest Mode</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="kap-card auth-card" id="loginCard">
+      <p class="section-label">Login (Admin/Owner account)</p>
+      <div class="login-grid">
+        <input id="emailInput" class="kap-input" type="email" placeholder="Email" autocomplete="email" />
+        <input id="passwordInput" class="kap-input" type="password" placeholder="Password" autocomplete="current-password" />
+        <button id="loginBtn" class="kap-btn kap-btn-primary" type="button">Login</button>
+      </div>
+      <p class="kap-msg" id="authNote">Waiting for Supabase connection.</p>
+    </section>
+
+    <section class="kap-card hidden" id="dashboardCard">
+      <div class="dashboard-top">
         <div>
-          <h1>Nandifram</h1>
-          <p>Admin Panel</p>
+          <p class="section-label">Access Granted</p>
+          <h2 class="dashboard-title" id="roleTitle">Admin</h2>
+          <p class="muted" id="sessionSubLabel">Signed in</p>
+        </div>
+        <div class="badge-row">
+          <span class="pill" id="userEmail">Authenticated user</span>
         </div>
       </div>
 
-      <nav class="nav">
-        <a href="#dashboard" class="nav-link active" data-section-link="dashboard">Dashboard</a>
-        <a href="#admin-users" class="nav-link" data-section-link="admin-users">Admin Users</a>
-        <a href="#verification-requests" class="nav-link" data-section-link="verification-requests">Verification Requests</a>
-        <a href="#verified-users" class="nav-link" data-section-link="verified-users">Verified Users</a>
-        <a href="#feedback-replies" class="nav-link" data-section-link="feedback-replies">Feedback Replies</a>
-        <a href="#suggestions" class="nav-link" data-section-link="suggestions">Suggestions</a>
-        <a href="#moderation-reports" class="nav-link" data-section-link="moderation-reports">Moderation Reports</a>
-        <a href="#notification-broadcast" class="nav-link" data-section-link="notification-broadcast">Notification Broadcast</a>
-        <a href="#daily-learning" class="nav-link" data-section-link="daily-learning">Daily Learning</a>
-        <a href="#subscription-plans" class="nav-link" data-section-link="subscription-plans">Subscription Plans</a>
-        <a href="#affiliate-requests" class="nav-link" data-section-link="affiliate-requests">Affiliate Requests</a>
-        <a href="#affiliate-commission-rules" class="nav-link" data-section-link="affiliate-commission-rules">Affiliate Commission Rules</a>
-        <a href="#affiliate-payouts" class="nav-link" data-section-link="affiliate-payouts">Affiliate Payouts</a>
-        <a href="#analytics" class="nav-link" data-section-link="analytics">Analytics</a>
-        <a href="#test-series" class="nav-link" data-section-link="test-series">Test Series</a>
-        <a href="#all-questions" class="nav-link" data-section-link="all-questions">All Questions</a>
-      </nav>
+      <div class="kap-grid kap-module-grid" id="moduleGrid">
+        <a href="#" class="kap-module-card kap-mod-analytics module-link hidden" data-roles="owner" data-module="analytics">
+          <span class="kap-module-title">App Analytics (Owner)</span>
+        </a>
+        <a href="#" class="kap-module-card kap-mod-analytics module-link hidden" data-roles="owner" data-module="revenue">
+          <span class="kap-module-title">Revenue Analytics (Owner)</span>
+        </a>
 
-      <div class="sidebar-footer">
-        <div class="status-card">
-          <span class="status-dot"></span>
-          <div>
-            <strong id="sessionLabel">Guest Mode</strong>
-            <p id="sessionSubLabel">Not signed in</p>
-          </div>
-        </div>
-        <button class="mobile-close" id="closeSidebar" type="button">Close Menu</button>
+        <a href="#" class="kap-module-card kap-mod-verify-req module-link hidden" data-roles="owner,admin,moderator" data-module="verification-requests">
+          <span class="kap-module-title">Verification Requests</span>
+          <span class="kap-badge" id="verificationBadge"></span>
+        </a>
+        <a href="#" class="kap-module-card kap-mod-verified module-link hidden" data-roles="owner,admin,moderator" data-module="verified-users">
+          <span class="kap-module-title">Verified Users</span>
+        </a>
+        <a href="#" class="kap-module-card kap-mod-reports module-link hidden" data-roles="owner,admin,moderator" data-module="reports">
+          <span class="kap-module-title">Reports</span>
+          <span class="kap-badge" id="reportsBadge"></span>
+        </a>
+        <a href="#" class="kap-module-card kap-mod-non-edu module-link hidden" data-roles="owner,admin,moderator" data-module="non-educational-reports">
+          <span class="kap-module-title">Non-Educational Reports</span>
+          <span class="kap-badge" id="nonEduBadge"></span>
+        </a>
+        <a href="#" class="kap-module-card kap-mod-suggestions module-link hidden" data-roles="owner,admin,moderator" data-module="suggestions">
+          <span class="kap-module-title">Suggestions</span>
+          <span class="kap-badge" id="suggestionsBadge"></span>
+        </a>
+        <a href="#" class="kap-module-card kap-mod-feedback module-link hidden" data-roles="owner,admin,moderator" data-module="feedback-replies">
+          <span class="kap-module-title">Ask/Feedback Replies</span>
+        </a>
+
+        <a href="#" class="kap-module-card kap-mod-affiliate module-link hidden" data-roles="owner,admin,sales_manager,sales_agent" data-module="affiliate-requests">
+          <span class="kap-module-title">Affiliate Requests</span>
+        </a>
+        <a href="#" class="kap-module-card kap-mod-payouts module-link hidden" data-roles="owner,admin,sales_manager,sales_agent" data-module="affiliate-payouts">
+          <span class="kap-module-title">Affiliate Payouts</span>
+        </a>
+        <a href="#" class="kap-module-card kap-mod-affiliate-rules module-link hidden" data-roles="owner,admin,sales_manager,sales_agent" data-module="affiliate-commission-rules">
+          <span class="kap-module-title">Affiliate Commission Rules</span>
+        </a>
+        <a href="#" class="kap-module-card kap-mod-subscription module-link hidden" data-roles="owner,admin,sales_manager,sales_agent" data-module="subscription-plans">
+          <span class="kap-module-title">Subscription Plans</span>
+        </a>
+        <a href="#" class="kap-module-card kap-mod-series module-link hidden" data-roles="owner,admin,sales_manager,sales_agent" data-module="test-series">
+          <span class="kap-module-title">Test Series Manager</span>
+        </a>
+        <a href="#" class="kap-module-card kap-mod-mock module-link hidden" data-roles="owner,admin,sales_manager,sales_agent" data-module="mock-broadcast">
+          <span class="kap-module-title">Mock Broadcast</span>
+        </a>
+        <a href="#" class="kap-module-card kap-mod-notification module-link hidden" data-roles="owner,admin,sales_manager,sales_agent" data-module="notification-broadcast">
+          <span class="kap-module-title">Notification Broadcast</span>
+        </a>
+
+        <a href="#" class="kap-module-card kap-mod-series module-link hidden" data-roles="owner,admin" data-module="daily-learning">
+          <span class="kap-module-title">Daily Learning Manager</span>
+        </a>
+        <a href="#" class="kap-module-card kap-mod-admin module-link hidden" data-roles="owner" data-module="admin-users">
+          <span class="kap-module-title">Admin Users</span>
+        </a>
+        <a href="#" class="kap-module-card kap-mod-audit module-link hidden" data-roles="owner" data-module="audit-logs">
+          <span class="kap-module-title">Audit Logs</span>
+        </a>
       </div>
-    </aside>
+    </section>
 
-    <main class="main">
-      <header class="topbar">
-        <button class="menu-btn" id="openSidebar" type="button">&#9776;</button>
-        <div>
-          <p class="eyebrow">Nandifram Admin</p>
-          <h2 id="pageTitle">Dashboard</h2>
-        </div>
-        <div class="topbar-actions">
-          <span class="pill pill-success">Live Preview</span>
-          <span class="pill">Static HTML</span>
-          <button class="secondary-btn" id="signOutBtn" type="button">Sign Out</button>
-        </div>
-      </header>
-
-      <section class="section active" data-section="dashboard">
-        <div class="hero">
-          <div>
-            <p class="eyebrow">Overview</p>
-            <h3>Admin panel without Next.js</h3>
-            <p class="muted">A clean static version you can upload as a folder or zip to any basic host.</p>
-          </div>
-          <div class="hero-stats">
-            <div class="stat">
-              <span>Users</span>
-              <strong>12,480</strong>
-            </div>
-            <div class="stat">
-              <span>Requests</span>
-              <strong>318</strong>
-            </div>
-            <div class="stat">
-              <span>Reports</span>
-              <strong>74</strong>
-            </div>
-          </div>
-        </div>
-
-        <div class="grid cards-4">
-          <article class="card"><span class="card-label">Admin Users</span><strong>23</strong><p>Role management</p></article>
-          <article class="card"><span class="card-label">Verified Users</span><strong>8,904</strong><p>Approved creators</p></article>
-          <article class="card"><span class="card-label">Subscriptions</span><strong>4 plans</strong><p>Plan pricing</p></article>
-          <article class="card"><span class="card-label">Test Series</span><strong>56</strong><p>Mock & series tools</p></article>
-        </div>
-
-        <div class="grid cards-2">
-          <article class="panel">
-            <div class="panel-head">
-              <h3>Quick Actions</h3>
-              <span class="pill pill-muted">Static</span>
-            </div>
-            <div class="actions">
-              <a href="#admin-users" class="action-btn">Manage admins</a>
-              <a href="#verification-requests" class="action-btn">Review requests</a>
-              <a href="#notification-broadcast" class="action-btn">Send broadcast</a>
-              <a href="#test-series" class="action-btn">Open test series</a>
-            </div>
-          </article>
-
-          <article class="panel">
-            <div class="panel-head">
-              <h3>Recent Activity</h3>
-              <span class="pill pill-warning">Today</span>
-            </div>
-            <ul class="activity-list">
-              <li><span>New admin role assigned</span><em>10 min ago</em></li>
-              <li><span>Verification request approved</span><em>32 min ago</em></li>
-              <li><span>Broadcast scheduled</span><em>1 hour ago</em></li>
-              <li><span>Mock test updated</span><em>2 hours ago</em></li>
-            </ul>
-          </article>
-        </div>
-      </section>
-
-      <section class="section" data-section="admin-users">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Users</p>
-            <h3>Admin Users</h3>
-          </div>
-          <button class="primary-btn" type="button">Add Admin</button>
-        </div>
-        <div class="panel">
-          <table>
-            <thead>
-              <tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th></tr>
-            </thead>
-            <tbody>
-              <tr><td>Admin One</td><td>admin1@example.com</td><td>Owner</td><td><span class="pill pill-success">Active</span></td></tr>
-              <tr><td>Admin Two</td><td>admin2@example.com</td><td>Sales</td><td><span class="pill pill-success">Active</span></td></tr>
-              <tr><td>Admin Three</td><td>admin3@example.com</td><td>Support</td><td><span class="pill pill-muted">Paused</span></td></tr>
-            </tbody>
-          </table>
-          <div class="list-grid" style="margin-top: 16px;"></div>
-        </div>
-      </section>
-
-      <section class="section" data-section="verification-requests">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Approvals</p>
-            <h3>Verification Requests</h3>
-          </div>
-          <span class="pill pill-warning">Pending 18</span>
-        </div>
-        <div class="grid cards-3">
-          <article class="panel small-card"><strong>Passport Check</strong><p>Need document review.</p></article>
-          <article class="panel small-card"><strong>Creator KYC</strong><p>Pending address confirmation.</p></article>
-          <article class="panel small-card"><strong>Business Profile</strong><p>Awaiting phone verification.</p></article>
-        </div>
-      </section>
-
-      <section class="section" data-section="verified-users">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Community</p>
-            <h3>Verified Users</h3>
-          </div>
-          <span class="pill pill-success">8,904 verified</span>
-        </div>
-        <div class="panel">
-          <div class="search-row">
-            <input class="input" placeholder="Search verified users">
-            <button class="secondary-btn" type="button">Export</button>
-          </div>
-          <div class="list-grid">
-            <div class="list-item"><strong>Rahul Patel</strong><span>rahul@example.com</span></div>
-            <div class="list-item"><strong>Priya Shah</strong><span>priya@example.com</span></div>
-            <div class="list-item"><strong>Mehul Desai</strong><span>mehul@example.com</span></div>
-          </div>
-        </div>
-      </section>
-
-      <section class="section" data-section="feedback-replies">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Support</p>
-            <h3>Feedback Replies</h3>
-          </div>
-          <span class="pill">Inbox</span>
-        </div>
-        <div class="panel">
-          <p class="muted">Use this area for reply templates, canned responses, and support follow-ups.</p>
-          <div class="quote-box">“Thanks for your feedback. We have reviewed your request and our team is checking the issue.”</div>
-        </div>
-      </section>
-
-      <section class="section" data-section="suggestions">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Ideas</p>
-            <h3>Suggestions</h3>
-          </div>
-          <button class="primary-btn" type="button">Mark Reviewed</button>
-        </div>
-        <div class="panel">
-          <ul class="bullet-list">
-            <li>Add dark mode toggle</li>
-            <li>Improve question import flow</li>
-            <li>Show better analytics cards</li>
-          </ul>
-        </div>
-      </section>
-
-      <section class="section" data-section="moderation-reports">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Safety</p>
-            <h3>Moderation Reports</h3>
-          </div>
-          <span class="pill pill-danger">74 open</span>
-        </div>
-        <div class="grid cards-2">
-          <article class="panel small-card"><strong>Spam post</strong><p>Needs review in creator feed.</p></article>
-          <article class="panel small-card"><strong>Harassment flag</strong><p>Resolve and archive.</p></article>
-        </div>
-      </section>
-
-      <section class="section" data-section="notification-broadcast">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Messaging</p>
-            <h3>Notification Broadcast</h3>
-          </div>
-          <button class="primary-btn" type="button">Send Broadcast</button>
-        </div>
-        <div class="panel form-grid">
-          <input class="input" placeholder="Title">
-          <textarea class="input" rows="5" placeholder="Broadcast message"></textarea>
-        </div>
-      </section>
-
-      <section class="section" data-section="daily-learning">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Learning</p>
-            <h3>Daily Learning</h3>
-          </div>
-          <span class="pill">Content Manager</span>
-        </div>
-        <div class="panel">
-          <div class="list-grid">
-            <div class="list-item"><strong>Today Quiz</strong><span>Published</span></div>
-            <div class="list-item"><strong>Question Bank</strong><span>Updated</span></div>
-            <div class="list-item"><strong>Schedule</strong><span>Weekly rotation</span></div>
-          </div>
-        </div>
-      </section>
-
-      <section class="section" data-section="subscription-plans">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Monetization</p>
-            <h3>Subscription Plans</h3>
-          </div>
-          <button class="primary-btn" type="button">Create Plan</button>
-        </div>
-        <div class="grid cards-3">
-          <article class="panel small-card"><strong>Starter</strong><p>₹199 / month</p></article>
-          <article class="panel small-card"><strong>Pro</strong><p>₹499 / month</p></article>
-          <article class="panel small-card"><strong>Premium</strong><p>₹999 / month</p></article>
-        </div>
-      </section>
-
-      <section class="section" data-section="affiliate-requests">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Growth</p>
-            <h3>Affiliate Requests</h3>
-          </div>
-          <span class="pill pill-warning">Review queue</span>
-        </div>
-        <div class="panel">
-          <p class="muted">Approve or reject creator affiliate applications from here.</p>
-        </div>
-      </section>
-
-      <section class="section" data-section="affiliate-commission-rules">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Commission</p>
-            <h3>Affiliate Commission Rules</h3>
-          </div>
-          <button class="primary-btn" type="button">New Rule</button>
-        </div>
-        <div class="panel">
-          <table>
-            <thead>
-              <tr><th>Plan</th><th>Commission</th><th>Validity</th></tr>
-            </thead>
-            <tbody>
-              <tr><td>Starter</td><td>10%</td><td>Active</td></tr>
-              <tr><td>Pro</td><td>15%</td><td>Active</td></tr>
-              <tr><td>Premium</td><td>20%</td><td>Active</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section class="section" data-section="affiliate-payouts">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Payments</p>
-            <h3>Affiliate Payouts</h3>
-          </div>
-          <span class="pill pill-success">Ready</span>
-        </div>
-        <div class="panel">
-          <div class="hero-stats">
-            <div class="stat"><span>Pending</span><strong>₹24,000</strong></div>
-            <div class="stat"><span>Paid</span><strong>₹1.2L</strong></div>
-          </div>
-        </div>
-      </section>
-
-      <section class="section" data-section="analytics">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Insights</p>
-            <h3>Analytics</h3>
-          </div>
-          <button class="secondary-btn" type="button">Revenue View</button>
-        </div>
-        <div class="grid cards-4">
-          <article class="card"><span class="card-label">Revenue</span><strong>₹3.8L</strong><p>This month</p></article>
-          <article class="card"><span class="card-label">Conversions</span><strong>12.4%</strong><p>Signup to paid</p></article>
-          <article class="card"><span class="card-label">Retention</span><strong>71%</strong><p>30-day users</p></article>
-          <article class="card"><span class="card-label">Refunds</span><strong>1.1%</strong><p>Low risk</p></article>
-        </div>
-      </section>
-
-      <section class="section" data-section="test-series">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Exam Tools</p>
-            <h3>Test Series</h3>
-          </div>
-          <button class="primary-btn" type="button">Create Series</button>
-        </div>
-        <div class="panel">
-          <div class="list-grid">
-            <div class="list-item"><strong>GPSC Series</strong><span>24 mocks</span></div>
-            <div class="list-item"><strong>Science Series</strong><span>12 mocks</span></div>
-            <div class="list-item"><strong>Math Series</strong><span>18 mocks</span></div>
-          </div>
-        </div>
-      </section>
-
-      <section class="section" data-section="all-questions">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Questions</p>
-            <h3>All Questions</h3>
-          </div>
-          <span class="pill">Mock wise</span>
-        </div>
-        <div class="panel">
-          <div class="question-preview">
-            <strong>Q1</strong>
-            <p>Static upload version for editing and previewing questions.</p>
-          </div>
-          <div class="question-preview">
-            <strong>Q2</strong>
-            <p>Use this panel as a simple uploaded dashboard shell.</p>
-          </div>
-        </div>
-      </section>
-
-      <section class="section" data-section="database-status">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Connection</p>
-            <h3>Supabase Status</h3>
-          </div>
-          <span class="pill" id="connectionPill">Disconnected</span>
-        </div>
-        <div class="grid cards-3">
-          <article class="panel small-card">
-            <strong>Authenticated User</strong>
-            <p id="userEmail">No session loaded.</p>
-          </article>
-          <article class="panel small-card">
-            <strong>Projects</strong>
-            <p>Uses your Supabase anon key and RLS.</p>
-          </article>
-          <article class="panel small-card">
-            <strong>Behavior</strong>
-            <p>Reads live data if permissions allow.</p>
-          </article>
-        </div>
-      </section>
-    </main>
-  </div>
+    <section class="kap-card hidden" id="statusCard">
+      <div class="status-row">
+        <strong>Session</strong>
+        <span id="sessionDetail">Not signed in</span>
+      </div>
+      <div class="status-row">
+        <strong>Role</strong>
+        <span id="roleDetail">-</span>
+      </div>
+      <div class="status-row">
+        <strong>Last Message</strong>
+        <span id="messageDetail">-</span>
+      </div>
+    </section>
+  </main>
 
   <script src="app.js"></script>
 </body>
