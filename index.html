@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KAPiLA Management System</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+  <main class="index-shell">
+    <section class="auth-card" id="loginCard">
+      <div class="brand">
+        <div class="brand-mark">K</div>
+        <div>
+          <h1>KAPiLA Management System</h1>
+          <p>Admin Management Panel</p>
+        </div>
+      </div>
+      <h2>Login</h2>
+      <div class="login-grid">
+        <input id="emailInput" class="kap-input" type="email" placeholder="Email" autocomplete="email" />
+        <input id="passwordInput" class="kap-input" type="password" placeholder="Password" autocomplete="current-password" />
+        <button id="loginBtn" class="kap-btn kap-btn-primary" type="button">Login</button>
+      </div>
+      <p class="kap-msg" id="authNote">Waiting for Supabase connection.</p>
+    </section>
+
+    <section class="module-shell hidden" id="dashboardCard">
+      <div class="module-topbar">
+        <div>
+          <p class="eyebrow">Dashboard</p>
+          <h2 id="roleTitle">Login to continue</h2>
+          <p class="muted" id="userEmail">Authenticated user</p>
+        </div>
+        <div class="module-topbar-actions">
+          <span class="pill pill-success" id="connectionPill">Disconnected</span>
+          <button class="secondary-btn" id="signOutBtn" type="button">Logout</button>
+        </div>
+      </div>
+
+      <div class="module-grid">
+        <a href="analytics.html" class="kap-module-card kap-mod-analytics module-link hidden" data-roles="owner" data-module="analytics">
+          <span class="kap-module-title">App Analytics (Owner)</span>
+        </a>
+        <a href="analytics-revenue.html" class="kap-module-card kap-mod-analytics module-link hidden" data-roles="owner" data-module="revenue">
+          <span class="kap-module-title">Revenue Analytics (Owner)</span>
+        </a>
+        <a href="verification-requests.html" class="kap-module-card kap-mod-verify-req module-link hidden" data-roles="owner,admin,moderator" data-module="verification-requests">
+          <span class="kap-module-title">Verification Requests</span>
+          <span class="kap-badge" id="verificationBadge"></span>
+        </a>
+        <a href="verified-users.html" class="kap-module-card kap-mod-verified module-link hidden" data-roles="owner,admin,moderator" data-module="verified-users">
+          <span class="kap-module-title">Verified Users</span>
+        </a>
+        <a href="moderation-reports.html" class="kap-module-card kap-mod-reports module-link hidden" data-roles="owner,admin,moderator" data-module="reports">
+          <span class="kap-module-title">Reports</span>
+          <span class="kap-badge" id="reportsBadge"></span>
+        </a>
+        <a href="non-educational-reports.html" class="kap-module-card kap-mod-non-edu module-link hidden" data-roles="owner,admin,moderator" data-module="non-educational-reports">
+          <span class="kap-module-title">Non-Educational Reports</span>
+          <span class="kap-badge" id="nonEduBadge"></span>
+        </a>
+        <a href="suggestions.html" class="kap-module-card kap-mod-suggestions module-link hidden" data-roles="owner,admin,moderator" data-module="suggestions">
+          <span class="kap-module-title">Suggestions</span>
+          <span class="kap-badge" id="suggestionsBadge"></span>
+        </a>
+        <a href="feedback-replies.html" class="kap-module-card kap-mod-feedback module-link hidden" data-roles="owner,admin,moderator" data-module="feedback-replies">
+          <span class="kap-module-title">Ask/Feedback Replies</span>
+        </a>
+        <a href="affiliate-requests.html" class="kap-module-card kap-mod-affiliate module-link hidden" data-roles="owner,admin,sales_manager,sales_agent" data-module="affiliate-requests">
+          <span class="kap-module-title">Affiliate Requests</span>
+        </a>
+        <a href="affiliate-payouts.html" class="kap-module-card kap-mod-payouts module-link hidden" data-roles="owner,admin,sales_manager,sales_agent" data-module="affiliate-payouts">
+          <span class="kap-module-title">Affiliate Payouts</span>
+        </a>
+        <a href="affiliate-commission-rules.html" class="kap-module-card kap-mod-affiliate-rules module-link hidden" data-roles="owner,admin,sales_manager,sales_agent" data-module="affiliate-commission-rules">
+          <span class="kap-module-title">Affiliate Commission Rules</span>
+        </a>
+        <a href="subscription-plans.html" class="kap-module-card kap-mod-subscription module-link hidden" data-roles="owner,admin,sales_manager,sales_agent" data-module="subscription-plans">
+          <span class="kap-module-title">Subscription Plans</span>
+        </a>
+        <a href="test-series.html" class="kap-module-card kap-mod-series module-link hidden" data-roles="owner,admin,sales_manager,sales_agent" data-module="test-series">
+          <span class="kap-module-title">Test Series Manager</span>
+        </a>
+        <a href="mock-broadcast.html" class="kap-module-card kap-mod-mock module-link hidden" data-roles="owner,admin,sales_manager,sales_agent" data-module="mock-broadcast">
+          <span class="kap-module-title">Mock Broadcast</span>
+        </a>
+        <a href="notification-broadcast.html" class="kap-module-card kap-mod-notification module-link hidden" data-roles="owner,admin,sales_manager,sales_agent" data-module="notification-broadcast">
+          <span class="kap-module-title">Notification Broadcast</span>
+        </a>
+        <a href="daily-learning.html" class="kap-module-card kap-mod-series module-link hidden" data-roles="owner,admin" data-module="daily-learning">
+          <span class="kap-module-title">Daily Learning Manager</span>
+        </a>
+        <a href="admin-users.html" class="kap-module-card kap-mod-admin module-link hidden" data-roles="owner" data-module="admin-users">
+          <span class="kap-module-title">Admin Users</span>
+        </a>
+        <a href="audit-logs.html" class="kap-module-card kap-mod-audit module-link hidden" data-roles="owner" data-module="audit-logs">
+          <span class="kap-module-title">Audit Logs</span>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

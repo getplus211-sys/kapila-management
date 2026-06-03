@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verified Users</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+</head>
+<body data-module="verified-users" data-title="Verified Users">
+  <main class="module-shell">
+    <header class="module-topbar">
+      <div>
+        <p class="eyebrow">Module</p>
+        <h2 id="roleTitle">Login to continue</h2>
+        <p class="muted" id="userEmail">Authenticated user</p>
+      </div>
+      <div class="module-topbar-actions">
+        <a href="index.html" class="secondary-btn">Back</a>
+        <span class="pill pill-success" id="connectionPill">Disconnected</span>
+        <button class="secondary-btn" id="signOutBtn" type="button">Logout</button>
+      </div>
+    </header>
+
+    <section class="auth-card" id="loginCard">
+      <div class="brand">
+        <div class="brand-mark">K</div>
+        <div>
+          <h1>KAPiLA Management System</h1>
+          <p>Admin Management Panel</p>
+        </div>
+      </div>
+      <h2>Login</h2>
+      <div class="login-grid">
+        <input id="emailInput" class="kap-input" type="email" placeholder="Email" autocomplete="email" />
+        <input id="passwordInput" class="kap-input" type="password" placeholder="Password" autocomplete="current-password" />
+        <button id="loginBtn" class="kap-btn kap-btn-primary" type="button">Login</button>
+      </div>
+      <p class="kap-msg" id="authNote">Waiting for Supabase connection.</p>
+    </section>
+
+    <section class="module-shell hidden" id="moduleShell">
+      <div class="module-content">
+        <div class="panel">
+          <p class="eyebrow">Page</p>
+          <h1 id="moduleTitle" style="margin: 4px 0 8px;">Verified Users</h1>
+          <p class="muted" id="moduleSubtitle">Loading...</p>
+          <p class="kap-msg" id="pageMessage"></p>
+        </div>
+      </div>
+      <div id="moduleMeta"></div>
+      <div id="moduleContent" class="module-content"></div>
+    </section>
+  </main>
+
+  <script src="module.js"></script>
+</body>
+</html>
