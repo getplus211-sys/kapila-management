@@ -66,6 +66,7 @@ const uiState = {
   },
   suggestions: {
     savingId: '',
+    expandedId: '',
   },
   feedback: {
     activeThread: '',
@@ -213,14 +214,14 @@ function renderList(items, options = {}) {
       ${options.title ? `<h3 style="margin:0 0 10px 0">${escapeHtml(options.title)}</h3>` : ''}
       <div class="list-grid">
         ${items
-          .map(
-            (item) => `
+      .map(
+        (item) => `
               <div class="list-row">
                 <strong>${escapeHtml(item.title)}</strong>
                 <span>${escapeHtml(item.detail)}</span>
               </div>`
-          )
-          .join('')}
+      )
+      .join('')}
       </div>
     </div>`
 }
@@ -477,26 +478,31 @@ async function loadSuggestions() {
               <div>
                 <p><b>Question ID:</b> ${escapeHtml(row.id)}</p>
                 <p class="muted">Quiz ID: ${escapeHtml(row.quiz_id || '-')} | Chapter: ${escapeHtml(row.chapter_code || '-')}</p>
-                <p class="muted">Created: ${escapeHtml(row.created_at)}</p>
+                <p class="muted">Created: ${new Date(row.created_at).toLocaleString()}</p>
               </div>
+              <button class="kap-btn kap-btn-outline" data-action="suggestion-toggle" data-suggestion-id="${escapeHtml(row.id)}">
+                ${uiState.suggestions.expandedId === row.id ? 'Hide Editor' : 'Open Editor'}
+              </button>
             </div>
             <p style="margin-top:6px"><b>Current:</b> ${escapeHtml(row.question || '-')}</p>
             <p><b>Suggestion:</b> ${escapeHtml(row.suggestion || '-')}</p>
-            <div class="stack" style="margin-top:10px">
-              <textarea id="suggestionReadOnly-${escapeHtml(row.id)}" class="kap-input" rows="4" placeholder="Suggested question text" readonly style="background:#f8fafc">${escapeHtml(row.suggestion || '')}</textarea>
-              <textarea id="suggestionQuestion-${escapeHtml(row.id)}" class="kap-input" rows="4" placeholder="Question">${escapeHtml(row.question)}</textarea>
-              <input id="suggestionOptionA-${escapeHtml(row.id)}" class="kap-input" placeholder="Option A" value="${escapeHtml(row.option_a)}" />
-              <input id="suggestionOptionB-${escapeHtml(row.id)}" class="kap-input" placeholder="Option B" value="${escapeHtml(row.option_b)}" />
-              <input id="suggestionOptionC-${escapeHtml(row.id)}" class="kap-input" placeholder="Option C" value="${escapeHtml(row.option_c)}" />
-              <input id="suggestionOptionD-${escapeHtml(row.id)}" class="kap-input" placeholder="Option D" value="${escapeHtml(row.option_d)}" />
-              <input id="suggestionOptionE-${escapeHtml(row.id)}" class="kap-input" placeholder="Option E (optional)" value="${escapeHtml(row.option_e)}" />
-              <input id="suggestionCorrect-${escapeHtml(row.id)}" class="kap-input" placeholder="Correct Answer" value="${escapeHtml(row.correct_answer)}" />
-              <input id="suggestionDifficulty-${escapeHtml(row.id)}" class="kap-input" placeholder="Difficulty Level" value="${escapeHtml(row.difficulty_level)}" />
-              <textarea id="suggestionSolution-${escapeHtml(row.id)}" class="kap-input" rows="4" placeholder="Solution">${escapeHtml(row.solution)}</textarea>
-              <button class="kap-btn kap-btn-primary" data-action="suggestion-save" data-suggestion-id="${escapeHtml(row.id)}">
-                ${uiState.suggestions.savingId === row.id ? 'Saving...' : 'Save Full Question'}
-              </button>
-            </div>
+            ${uiState.suggestions.expandedId === row.id ? `
+              <div class="stack" style="margin-top:10px">
+                <textarea id="suggestionReadOnly-${escapeHtml(row.id)}" class="kap-input" rows="4" placeholder="Suggested question text" readonly style="background:#f8fafc">${escapeHtml(row.suggestion || '')}</textarea>
+                <textarea id="suggestionQuestion-${escapeHtml(row.id)}" class="kap-input" rows="4" placeholder="Question">${escapeHtml(row.question)}</textarea>
+                <input id="suggestionOptionA-${escapeHtml(row.id)}" class="kap-input" placeholder="Option A" value="${escapeHtml(row.option_a)}" />
+                <input id="suggestionOptionB-${escapeHtml(row.id)}" class="kap-input" placeholder="Option B" value="${escapeHtml(row.option_b)}" />
+                <input id="suggestionOptionC-${escapeHtml(row.id)}" class="kap-input" placeholder="Option C" value="${escapeHtml(row.option_c)}" />
+                <input id="suggestionOptionD-${escapeHtml(row.id)}" class="kap-input" placeholder="Option D" value="${escapeHtml(row.option_d)}" />
+                <input id="suggestionOptionE-${escapeHtml(row.id)}" class="kap-input" placeholder="Option E (optional)" value="${escapeHtml(row.option_e)}" />
+                <input id="suggestionCorrect-${escapeHtml(row.id)}" class="kap-input" placeholder="Correct Answer" value="${escapeHtml(row.correct_answer)}" />
+                <input id="suggestionDifficulty-${escapeHtml(row.id)}" class="kap-input" placeholder="Difficulty Level" value="${escapeHtml(row.difficulty_level)}" />
+                <textarea id="suggestionSolution-${escapeHtml(row.id)}" class="kap-input" rows="4" placeholder="Solution">${escapeHtml(row.solution)}</textarea>
+                <button class="kap-btn kap-btn-primary" data-action="suggestion-save" data-suggestion-id="${escapeHtml(row.id)}">
+                  ${uiState.suggestions.savingId === row.id ? 'Saving...' : 'Save Full Question'}
+                </button>
+              </div>
+            ` : ''}
           </div>
         `).join('') : '<div class="panel"><p>No suggestions found in kls_questions.</p></div>'}
       </div>
@@ -524,11 +530,11 @@ async function loadFeedbackReplies() {
   uiState.feedback.activeThread = activeThread
   const messageRes = activeThread
     ? await supabase
-        .from('ngm_feedback_messages')
-        .select('message_id,thread_id,sender_user_id,sender_type,message_text,created_at')
-        .eq('thread_id', activeThread)
-        .order('created_at', { ascending: true })
-        .limit(500)
+      .from('ngm_feedback_messages')
+      .select('message_id,thread_id,sender_user_id,sender_type,message_text,created_at')
+      .eq('thread_id', activeThread)
+      .order('created_at', { ascending: true })
+      .limit(500)
     : { data: [], error: null }
   if (messageRes.error) throw messageRes.error
 
@@ -949,11 +955,11 @@ async function loadDailyLearning() {
 
   const quizRes = uiState.daily.chapterCode
     ? await supabase
-        .from('kls_quizzes')
-        .select('quiz_id,quiz_name,chapter_code,difficulty_level,subject_id,total_questions,time_limit,is_active')
-        .eq('chapter_code', uiState.daily.chapterCode)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false })
+      .from('kls_quizzes')
+      .select('quiz_id,quiz_name,chapter_code,difficulty_level,subject_id,total_questions,time_limit,is_active')
+      .eq('chapter_code', uiState.daily.chapterCode)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
     : { data: [], error: null }
   if (quizRes.error) throw quizRes.error
   const quizzes = (quizRes.data || [])
@@ -1584,6 +1590,13 @@ async function refreshPage() {
         return
       }
 
+      if (action === 'suggestion-toggle') {
+        const suggestionId = target.dataset.suggestionId || ''
+        uiState.suggestions.expandedId = uiState.suggestions.expandedId === suggestionId ? '' : suggestionId
+        await refreshPage()
+        return
+      }
+
       if (action === 'daily-refresh') {
         await refreshPage()
         return
@@ -2036,54 +2049,54 @@ async function refreshPage() {
         }
         setMessage(`Notification sent successfully to ${Number(data ?? 0)} users.`, false)
       })
-      }
-    }
-
-    moduleContent.onchange = async (event) => {
-      const target = event.target
-      if (!target || !(target instanceof HTMLElement)) return
-
-      if (target.id === 'seriesExamCode') {
-        uiState.testSeries.examCode = target.value || 'GPSC'
-        await refreshPage()
-        return
-      }
-
-      if (target.id === 'dailySubjectSelect') {
-        uiState.daily.subjectId = target.value || ''
-        uiState.daily.chapterCode = ''
-        uiState.daily.quizId = 'all'
-        uiState.daily.selectedQuestionIds = []
-        await refreshPage()
-        return
-      }
-
-      if (target.id === 'dailyChapterSelect') {
-        uiState.daily.chapterCode = target.value || ''
-        uiState.daily.quizId = 'all'
-        uiState.daily.selectedQuestionIds = []
-        await refreshPage()
-        return
-      }
-
-      if (target.id === 'dailyQuizSelect') {
-        uiState.daily.quizId = target.value || 'all'
-        uiState.daily.selectedQuestionIds = []
-        await refreshPage()
-        return
-      }
-
-      if (target.id === 'dailyQuizName') {
-        uiState.daily.quizName = target.value || 'Daily Learning'
-        return
-      }
-
-      if (target.id === 'dailyTimeLimit') {
-        uiState.daily.timeLimit = target.value || '15'
-        return
-      }
     }
   }
+
+  moduleContent.onchange = async (event) => {
+    const target = event.target
+    if (!target || !(target instanceof HTMLElement)) return
+
+    if (target.id === 'seriesExamCode') {
+      uiState.testSeries.examCode = target.value || 'GPSC'
+      await refreshPage()
+      return
+    }
+
+    if (target.id === 'dailySubjectSelect') {
+      uiState.daily.subjectId = target.value || ''
+      uiState.daily.chapterCode = ''
+      uiState.daily.quizId = 'all'
+      uiState.daily.selectedQuestionIds = []
+      await refreshPage()
+      return
+    }
+
+    if (target.id === 'dailyChapterSelect') {
+      uiState.daily.chapterCode = target.value || ''
+      uiState.daily.quizId = 'all'
+      uiState.daily.selectedQuestionIds = []
+      await refreshPage()
+      return
+    }
+
+    if (target.id === 'dailyQuizSelect') {
+      uiState.daily.quizId = target.value || 'all'
+      uiState.daily.selectedQuestionIds = []
+      await refreshPage()
+      return
+    }
+
+    if (target.id === 'dailyQuizName') {
+      uiState.daily.quizName = target.value || 'Daily Learning'
+      return
+    }
+
+    if (target.id === 'dailyTimeLimit') {
+      uiState.daily.timeLimit = target.value || '15'
+      return
+    }
+  }
+}
 
 async function login() {
   setMessage('')
