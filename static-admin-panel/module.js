@@ -1533,6 +1533,8 @@ async function refreshPage() {
       if (action === 'suggestion-save') {
         const suggestionId = target.dataset.suggestionId || ''
         if (!suggestionId) return
+        const parsedId = /^\d+$/.test(suggestionId) ? Number(suggestionId) : suggestionId
+
         const question = (document.getElementById(`suggestionQuestion-${suggestionId}`)?.value || '').trim()
         const optionA = (document.getElementById(`suggestionOptionA-${suggestionId}`)?.value || '').trim()
         const optionB = (document.getElementById(`suggestionOptionB-${suggestionId}`)?.value || '').trim()
@@ -1548,9 +1550,13 @@ async function refreshPage() {
           return
         }
 
+        target.disabled = true
+        const originalText = target.textContent
+        target.textContent = 'Saving...'
         uiState.suggestions.savingId = suggestionId
+
         const { data, error } = await supabase.rpc('ngm_admin_update_kls_question', {
-          p_id: suggestionId,
+          p_id: parsedId,
           p_question: question,
           p_option_a: optionA,
           p_option_b: optionB,
@@ -1563,10 +1569,12 @@ async function refreshPage() {
           p_admin_note: 'Updated from static suggestions panel',
         })
         if (!error) {
-          await supabase.from('kls_questions').update({ suggestion: null }).eq('id', suggestionId)
+          await supabase.from('kls_questions').update({ suggestion: null }).eq('id', parsedId)
         }
         uiState.suggestions.savingId = ''
         if (error) {
+          target.disabled = false
+          target.textContent = originalText
           setMessage(error.message)
           return
         }
