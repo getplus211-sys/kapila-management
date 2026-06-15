@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Suggestions</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=4">
   <script src="config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 </head>
@@ -45,15 +45,24 @@
         <div class="panel">
           <p class="eyebrow">Page</p>
           <h1 id="moduleTitle" style="margin: 4px 0 8px;">Suggestions</h1>
-          <p class="muted" id="moduleSubtitle">Loading...</p>
+          <p class="muted" id="moduleSubtitle">Review suggested question edits.</p>
           <p class="kap-msg" id="pageMessage"></p>
         </div>
+
+        <div class="panel">
+          <p style="font-weight: 800; margin-bottom: 8px;">Instructions</p>
+          <p class="muted" style="margin: 0;">
+            This page loads rows from <b>kls_questions</b> where <b>suggestion</b> is not empty.
+            Each card lets you review the suggestion and save the full edited question.
+          </p>
+        </div>
       </div>
+
       <div id="moduleMeta"></div>
       <div id="moduleContent" class="module-content"></div>
     </section>
   </main>
 
-  <script src="module.js"></script>
+  <script src="module.js?v=4"></script>
 </body>
 </html>
