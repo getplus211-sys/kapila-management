@@ -65,7 +65,6 @@ const uiState = {
     loadingUserId: '',
   },
   suggestions: {
-    expandedId: '',
     savingId: '',
   },
   feedback: {
@@ -440,7 +439,7 @@ async function loadSuggestions() {
 
   const { data, error } = await supabase
     .from('kls_questions')
-    .select('id,question,option_a,option_b,option_c,option_d,option_e,correct_answer,solution,difficulty_level,suggestion,created_at')
+    .select('id,quiz_id,chapter_code,question,option_a,option_b,option_c,option_d,option_e,correct_answer,solution,difficulty_level,suggestion,created_at')
     .not('suggestion', 'is', null)
     .neq('suggestion', '')
     .order('created_at', { ascending: false })
@@ -448,6 +447,8 @@ async function loadSuggestions() {
   if (error) throw error
   const rows = (data || []).map((row) => ({
     id: row.id,
+    quiz_id: row.quiz_id || '',
+    chapter_code: row.chapter_code || '',
     question: row.question || '',
     option_a: row.option_a || '',
     option_b: row.option_b || '',
@@ -466,17 +467,23 @@ async function loadSuggestions() {
     cards: [{ label: 'Suggestions', value: rows.length }],
     body: `
       <div class="stack">
+        <div class="panel">
+          <p style="font-weight: 800; margin-bottom: 8px">Suggestions rows</p>
+          <p class="muted" style="margin: 0;">Each card shows the question, its quiz/chapter context, and the editable fields used to save the full answer set.</p>
+        </div>
         ${rows.length ? rows.map((row) => `
           <div class="panel">
             <div class="row-between">
               <div>
                 <p><b>Question ID:</b> ${escapeHtml(row.id)}</p>
+                <p class="muted">Quiz ID: ${escapeHtml(row.quiz_id || '-')} | Chapter: ${escapeHtml(row.chapter_code || '-')}</p>
                 <p class="muted">Created: ${escapeHtml(row.created_at)}</p>
               </div>
             </div>
             <p style="margin-top:6px"><b>Current:</b> ${escapeHtml(row.question || '-')}</p>
             <p><b>Suggestion:</b> ${escapeHtml(row.suggestion || '-')}</p>
             <div class="stack" style="margin-top:10px">
+              <textarea id="suggestionReadOnly-${escapeHtml(row.id)}" class="kap-input" rows="4" placeholder="Suggested question text" readonly style="background:#f8fafc">${escapeHtml(row.suggestion || '')}</textarea>
               <textarea id="suggestionQuestion-${escapeHtml(row.id)}" class="kap-input" rows="4" placeholder="Question">${escapeHtml(row.question)}</textarea>
               <input id="suggestionOptionA-${escapeHtml(row.id)}" class="kap-input" placeholder="Option A" value="${escapeHtml(row.option_a)}" />
               <input id="suggestionOptionB-${escapeHtml(row.id)}" class="kap-input" placeholder="Option B" value="${escapeHtml(row.option_b)}" />
@@ -1519,13 +1526,6 @@ async function refreshPage() {
           return
         }
         uiState.feedback.replyText = ''
-        await refreshPage()
-        return
-      }
-
-      if (action === 'suggestion-toggle') {
-        const suggestionId = target.dataset.suggestionId || ''
-        uiState.suggestions.expandedId = uiState.suggestions.expandedId === suggestionId ? '' : suggestionId
         await refreshPage()
         return
       }
