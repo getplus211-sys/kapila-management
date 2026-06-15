@@ -22,6 +22,60 @@ const pageMessage = document.getElementById('pageMessage')
 let supabase = null
 let currentRole = null
 
+const uiState = {
+  verificationStatus: 'pending',
+  moderationTab: 'all',
+  daily: {
+    subjectId: '',
+    chapterCode: '',
+    quizId: 'all',
+    search: '',
+    quizName: 'Daily Learning',
+    timeLimit: '15',
+    selectedQuestionIds: [],
+  },
+  testSeries: {
+    examCode: 'GPSC',
+    filter: 'all',
+    seriesId: '',
+    mockId: '',
+    displayOrder: '1',
+    importMockId: '',
+    selectedQuestionIds: [],
+    search: '',
+    selectedSubjectId: '',
+    selectedChapterCode: '',
+    selectedQuizId: '',
+    newMockName: '',
+    newMockDetails: '',
+    newMockDuration: '30',
+    newMockEngine: 'MOCK_025',
+    newMockIsPaid: true,
+    newMockMakeLive: false,
+    newMockPaused: false,
+    newMockActive: true,
+  },
+  verification: {
+    overviewByUserId: {},
+    openUserId: '',
+    loadingUserId: '',
+  },
+  moderation: {
+    replyBoxId: '',
+    replyText: '',
+    replyingId: '',
+    resolvingId: '',
+  },
+  affiliateRequests: {
+    status: 'pending',
+    codes: {},
+    percents: {},
+  },
+  subscriptionPlans: {
+    editingPlanId: '',
+  },
+}
+
 const ROLE_GROUPS = {
   moderation: ['owner', 'admin', 'moderator'],
   sales: ['owner', 'admin', 'sales_manager', 'sales_agent'],
@@ -77,6 +131,10 @@ async function getAdminAccess() {
 
 function hasAccess(role, allowedRoles) {
   return allowedRoles.includes(role || '')
+}
+
+function getQueryParam(name) {
+  return new URLSearchParams(window.location.search).get(name) || ''
 }
 
 function setVisible(visible) {
@@ -156,18 +214,25 @@ function renderList(items, options = {}) {
 }
 
 async function loadVerificationRequests() {
-  const [reqRes, userRes] = await Promise.all([
+  const status = uiState.verificationStatus || 'pending'
+  const [reqRes, userRes, pendingRes, approvedRes, rejectedRes, moreInfoRes] = await Promise.all([
     supabase
       .from('ngm_verification_requests')
-      .select('request_id,user_id,status,created_at')
-      .eq('status', 'pending')
+      .select('request_id,user_id,status,doc_type,doc_front_url,doc_back_url,doc_extra_url,submitted_note,review_note,created_at,updated_at')
+      .eq('status', status)
       .order('created_at', { ascending: false })
       .limit(20),
     supabase.from('ngm_users').select('user_id,username,full_name,email,mobile').limit(500),
+    supabase.from('ngm_verification_requests').select('request_id', { head: true, count: 'exact' }).eq('status', 'pending'),
+    supabase.from('ngm_verification_requests').select('request_id', { head: true, count: 'exact' }).eq('status', 'approved'),
+    supabase.from('ngm_verification_requests').select('request_id', { head: true, count: 'exact' }).eq('status', 'rejected'),
+    supabase.from('ngm_verification_requests').select('request_id', { head: true, count: 'exact' }).eq('status', 'needs_more_info'),
   ])
 
   if (reqRes.error) throw reqRes.error
   if (userRes.error) throw userRes.error
+  const countError = pendingRes.error ?? approvedRes.error ?? rejectedRes.error ?? moreInfoRes.error
+  if (countError) throw countError
 
   const userMap = new Map((userRes.data || []).map((user) => [user.user_id, user]))
   const rows = (reqRes.data || []).map((row) => {
@@ -175,21 +240,76 @@ async function loadVerificationRequests() {
     return {
       request_id: row.request_id,
       user: user?.full_name || user?.username || user?.email || row.user_id,
+      user_id: row.user_id,
       status: row.status,
+      doc_type: row.doc_type,
+      submitted_note: row.submitted_note,
+      review_note: row.review_note,
+      doc_front_url: row.doc_front_url,
+      doc_back_url: row.doc_back_url,
+      doc_extra_url: row.doc_extra_url,
       created_at: row.created_at,
+      updated_at: row.updated_at,
     }
   })
 
   return {
     title: 'Verification Requests',
     subtitle: 'Pending approvals from ngm_verification_requests.',
-    cards: [{ label: 'Pending', value: rows.length }],
-    body: renderTable(rows, {
-      title: 'Pending requests',
-      columns: ['request_id', 'user', 'status', 'created_at'],
-      labels: { request_id: 'Request ID', user: 'User', status: 'Status', created_at: 'Created' },
-      emptyText: 'No pending verification requests.',
-    }),
+    cards: [
+      { label: 'Pending', value: pendingRes.count ?? 0 },
+      { label: 'Approved', value: approvedRes.count ?? 0 },
+      { label: 'Rejected', value: rejectedRes.count ?? 0 },
+      { label: 'Need Info', value: moreInfoRes.count ?? 0 },
+    ],
+    body: `
+      <div class="panel">
+        <div class="filter-bar">
+          ${['pending', 'approved', 'rejected', 'needs_more_info'].map((item) => `
+            <button class="kap-btn ${status === item ? 'kap-btn-primary' : 'kap-btn-outline'}" data-action="verification-filter" data-status="${item}">
+              ${item.replaceAll('_', ' ')}
+            </button>
+          `).join('')}
+        </div>
+      </div>
+      <div class="stack">
+        ${rows.length ? rows.map((row) => `
+          <div class="panel">
+            <div class="row-between">
+              <div>
+                <p><b>${escapeHtml(row.user)}</b></p>
+                <p class="muted">User: ${escapeHtml(row.user_id)} | Type: ${escapeHtml(row.doc_type || '-')} | Status: <span class="kap-chip">${escapeHtml(row.status)}</span></p>
+                ${row.submitted_note ? `<p><b>User note:</b> ${escapeHtml(row.submitted_note)}</p>` : ''}
+                ${row.review_note ? `<p><b>Review note:</b> ${escapeHtml(row.review_note)}</p>` : ''}
+                <p class="muted">Created: ${escapeHtml(row.created_at)}</p>
+              </div>
+              <div class="action-wrap">
+                <button class="kap-btn kap-btn-outline" data-action="verification-overview" data-user-id="${escapeHtml(row.user_id)}">
+                  ${uiState.verification.openUserId === row.user_id ? 'Close Overview' : (uiState.verification.loadingUserId === row.user_id ? 'Loading...' : 'Profile Overview')}
+                </button>
+                <a href="user-profile.html?userId=${encodeURIComponent(row.user_id)}" class="secondary-btn">View Profile</a>
+                ${status === 'pending' ? `
+                  <button class="kap-btn kap-btn-primary" data-action="verification-review" data-request-id="${escapeHtml(row.request_id)}" data-status="approved">Approve</button>
+                  <button class="kap-btn kap-btn-danger" data-action="verification-review" data-request-id="${escapeHtml(row.request_id)}" data-status="rejected">Reject</button>
+                  <button class="kap-btn kap-btn-outline" data-action="verification-review" data-request-id="${escapeHtml(row.request_id)}" data-status="needs_more_info">Need Info</button>
+                ` : ''}
+              </div>
+            </div>
+            ${row.doc_front_url ? `<p><a href="${escapeHtml(row.doc_front_url)}" target="_blank">Front Doc</a></p>` : ''}
+            ${row.doc_back_url ? `<p><a href="${escapeHtml(row.doc_back_url)}" target="_blank">Back Doc</a></p>` : ''}
+            ${row.doc_extra_url ? `<p><a href="${escapeHtml(row.doc_extra_url)}" target="_blank">Extra Doc</a></p>` : ''}
+            ${uiState.verification.openUserId === row.user_id && uiState.verification.overviewByUserId[row.user_id] ? `
+              <div class="panel" style="background:#f8fafc;margin-top:10px">
+                <p><b>Creator Overview (Month)</b></p>
+                <p>Posts: ${uiState.verification.overviewByUserId[row.user_id].posts_count ?? 0} | Views: ${uiState.verification.overviewByUserId[row.user_id].total_views ?? 0}</p>
+                <p>Likes: ${uiState.verification.overviewByUserId[row.user_id].likes_count ?? 0} | Comments: ${uiState.verification.overviewByUserId[row.user_id].comments_count ?? 0}</p>
+                <p>Profile Visits: ${uiState.verification.overviewByUserId[row.user_id].profile_visits ?? 0}</p>
+              </div>
+            ` : ''}
+          </div>
+        `).join('') : '<div class="panel"><p>No requests.</p></div>'}
+      </div>
+    `,
   }
 }
 
@@ -239,12 +359,23 @@ async function loadModerationReports() {
     title: 'Reports',
     subtitle: 'Pending moderation reports across posts, quizzes, polls and users.',
     cards: [{ label: 'Pending', value: rows.length }],
-    body: renderTable(rows, {
-      title: 'Latest reports',
-      columns: ['source', 'id', 'reported_by', 'reason', 'created_at'],
-      labels: { source: 'Source', id: 'Content ID', reported_by: 'Reported By', reason: 'Reason', created_at: 'Created' },
-      emptyText: 'No pending reports.',
-    }),
+    body: `
+      <div class="stack">
+        ${(rows.length ? rows : []).map((row) => `
+          <div class="panel">
+            <p><b>${escapeHtml(row.source)}</b> | Content: ${escapeHtml(row.id)}</p>
+            <p class="muted">Reported by: ${escapeHtml(row.reported_by)} | Created: ${escapeHtml(row.created_at)}</p>
+            <p><b>Reason:</b> ${escapeHtml(row.reason || '-')}</p>
+            <div class="action-wrap">
+              <button class="kap-btn kap-btn-outline" data-action="report-reply" data-source="${escapeHtml(row.source)}" data-id="${escapeHtml(row.id)}" data-reported-by="${escapeHtml(row.reported_by)}">Reply to User</button>
+              <button class="kap-btn kap-btn-outline" data-action="report-resolve" data-source="${escapeHtml(row.source)}" data-id="${escapeHtml(row.id)}" data-mode="keep">Resolve Keep</button>
+              <button class="kap-btn kap-btn-danger" data-action="report-resolve" data-source="${escapeHtml(row.source)}" data-id="${escapeHtml(row.id)}" data-mode="delete">Delete Content</button>
+              <a class="secondary-btn" href="user-profile.html?userId=${encodeURIComponent(row.reported_by)}">View Reporter Profile</a>
+            </div>
+          </div>
+        `).join('') || '<div class="panel"><p>No pending reports.</p></div>'}
+      </div>
+    `,
   }
 }
 
@@ -341,9 +472,11 @@ async function loadFeedbackReplies() {
 }
 
 async function loadAffiliateRequests() {
+  const status = uiState.affiliateRequests.status || 'pending'
   const { data, error } = await supabase
     .from('kls_affiliate_applications')
     .select('application_id,user_id,full_name,phone_number,organization_name,status,created_at')
+    .eq('status', status)
     .order('created_at', { ascending: false })
     .limit(50)
   if (error) throw error
@@ -351,12 +484,36 @@ async function loadAffiliateRequests() {
     title: 'Affiliate Requests',
     subtitle: 'Creator affiliate applications.',
     cards: [{ label: 'Applications', value: (data || []).length }],
-    body: renderTable(data || [], {
-      title: 'Applications',
-      columns: ['application_id', 'user_id', 'full_name', 'organization_name', 'status', 'created_at'],
-      labels: { application_id: 'Application', user_id: 'User', full_name: 'Name', organization_name: 'Organization', status: 'Status', created_at: 'Created' },
-      emptyText: 'No affiliate applications.',
-    }),
+    body: `
+      <div class="panel">
+        <div class="filter-bar">
+          ${['pending', 'approved', 'rejected'].map((item) => `
+            <button class="kap-btn ${status === item ? 'kap-btn-primary' : 'kap-btn-outline'}" data-action="affiliate-filter" data-status="${item}">
+              ${item}
+            </button>
+          `).join('')}
+        </div>
+      </div>
+      <div class="stack">
+        ${(data || []).length ? (data || []).map((row) => `
+          <div class="panel">
+            <p><b>${escapeHtml(row.full_name || '-')}</b> (${escapeHtml(row.user_id)})</p>
+            <p class="muted">Mobile: ${escapeHtml(row.phone_number || '-')} | Organization: ${escapeHtml(row.organization_name || '-')}</p>
+            <p class="muted">Status: <span class="kap-chip">${escapeHtml(row.status)}</span></p>
+            ${status === 'pending' ? `
+              <div class="form-grid" style="margin-top:10px">
+                <input class="kap-input" data-field="affiliate-code" data-application-id="${escapeHtml(row.application_id)}" placeholder="Affiliate Code" />
+                <input class="kap-input" data-field="affiliate-percent" data-application-id="${escapeHtml(row.application_id)}" placeholder="Commission %" value="10" />
+                <div class="action-wrap">
+                  <button class="kap-btn kap-btn-primary" data-action="affiliate-approve" data-application-id="${escapeHtml(row.application_id)}">Approve</button>
+                  <button class="kap-btn kap-btn-danger" data-action="affiliate-reject" data-application-id="${escapeHtml(row.application_id)}">Reject</button>
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        `).join('') : '<div class="panel"><p>No affiliate requests.</p></div>'}
+      </div>
+    `,
   }
 }
 
@@ -371,20 +528,30 @@ async function loadAffiliatePayouts() {
     title: 'Affiliate Payouts',
     subtitle: 'Active affiliate profiles and payouts.',
     cards: [{ label: 'Active Affiliates', value: (profilesRes.data || []).length }, { label: 'Payouts', value: (payoutsRes.data || []).length }],
-    body: [
-      renderTable(profilesRes.data || [], {
-        title: 'Active profiles',
-        columns: ['user_id', 'affiliate_code', 'is_active'],
-        labels: { user_id: 'User', affiliate_code: 'Code', is_active: 'Active' },
-        emptyText: 'No active affiliates.',
-      }),
-      renderTable(payoutsRes.data || [], {
-        title: 'Payouts',
-        columns: ['payout_id', 'affiliate_user_id', 'amount', 'paid_at', 'notes'],
-        labels: { payout_id: 'Payout', affiliate_user_id: 'Affiliate User', amount: 'Amount', paid_at: 'Paid At', notes: 'Notes' },
-        emptyText: 'No payouts found.',
-      }),
-    ].join(''),
+    body: `
+      <div class="panel">
+        <p style="font-weight:800;margin:0 0 10px 0">Mark Paid Amount</p>
+        <div class="form-grid">
+          <select class="kap-input" id="payoutUser">
+            <option value="">Select Affiliate</option>
+            ${(profilesRes.data || []).map((row) => `<option value="${escapeHtml(row.user_id)}">${escapeHtml(row.affiliate_code)} - ${escapeHtml(row.user_id)}</option>`).join('')}
+          </select>
+          <input class="kap-input" id="payoutAmount" placeholder="Amount" />
+          <input class="kap-input" id="payoutNotes" placeholder="Notes" />
+          <button class="kap-btn kap-btn-primary" data-action="payout-save">Add Payout</button>
+        </div>
+      </div>
+      <div class="stack">
+        ${(payoutsRes.data || []).map((row) => `
+          <div class="panel">
+            <p><b>User:</b> ${escapeHtml(row.affiliate_user_id)}</p>
+            <p><b>Amount:</b> Rs.${Number(row.amount).toFixed(2)}</p>
+            <p><b>Paid At:</b> ${escapeHtml(row.paid_at)}</p>
+            <p><b>Notes:</b> ${escapeHtml(row.notes || '-')}</p>
+          </div>
+        `).join('') || '<div class="panel"><p>No payouts yet.</p></div>'}
+      </div>
+    `,
   }
 }
 
@@ -431,12 +598,33 @@ async function loadSubscriptionPlans() {
     title: 'Subscription Plans',
     subtitle: 'Manage plan list.',
     cards: [{ label: 'Plans', value: (data || []).length }],
-    body: renderTable(data || [], {
-      title: 'Plans',
-      columns: ['subscription_plan_id', 'plan_name', 'plan_code', 'price', 'period_days', 'is_active'],
-      labels: { subscription_plan_id: 'Plan ID', plan_name: 'Plan Name', plan_code: 'Code', price: 'Price', period_days: 'Days', is_active: 'Active' },
-      emptyText: 'No subscription plans.',
-    }),
+    body: `
+      <div class="panel">
+        <p style="font-weight:800;margin:0 0 10px 0">Create / Update Plan</p>
+        <div class="form-grid">
+          <input class="kap-input" id="planCode" placeholder="Plan code" value="KLS_FULL_12M" />
+          <input class="kap-input" id="planName" placeholder="Plan name" value="Full Subscription 12M" />
+          <input class="kap-input" id="planDescription" placeholder="Description" value="All content access for 12 months" />
+          <input class="kap-input" id="planMonths" placeholder="Duration months" value="12" />
+          <input class="kap-input" id="planPrice" placeholder="Price INR" value="999" />
+          <button class="kap-btn kap-btn-primary" data-action="plan-save">Save Plan</button>
+        </div>
+      </div>
+      <div class="stack">
+        ${(data || []).map((row) => `
+          <div class="panel">
+            <p><b>${escapeHtml(row.plan_name)}</b> (${escapeHtml(row.plan_code)})</p>
+            <p>Duration: ${escapeHtml(row.period_days)} days</p>
+            <p>Price: Rs.${Number(row.price).toFixed(2)}</p>
+            <p>Status: <span class="kap-chip">${row.is_active ? 'active' : 'inactive'}</span></p>
+            <div class="action-wrap">
+              <button class="kap-btn kap-btn-outline" data-action="plan-edit" data-plan-id="${escapeHtml(row.subscription_plan_id)}">Edit</button>
+              <button class="kap-btn kap-btn-outline" data-action="plan-toggle" data-plan-id="${escapeHtml(row.subscription_plan_id)}" data-active="${row.is_active ? '1' : '0'}">${row.is_active ? 'Deactivate' : 'Activate'}</button>
+            </div>
+          </div>
+        `).join('') || '<div class="panel"><p>No subscription plans.</p></div>'}
+      </div>
+    `,
   }
 }
 
@@ -448,30 +636,127 @@ async function loadTestSeries() {
   ])
   const firstErr = seriesRes.error ?? mocksRes.error ?? mapsRes.error
   if (firstErr) throw firstErr
+  const allSeries = (seriesRes.data || []).map((row) => ({ ...row }))
+  const allMocks = (mocksRes.data || []).map((row) => ({ ...row }))
+  const allMaps = (mapsRes.data || []).map((row) => ({ ...row }))
+  const examCode = uiState.testSeries.examCode || 'GPSC'
+  const mockById = new Map(allMocks.map((row) => [row.mock_test_id, row]))
+  const liveSeriesIds = new Set()
+  for (const row of allMaps) {
+    const mock = mockById.get(row.mock_test_id)
+    if (mock?.is_active === true && mock?.is_live === true && mock?.is_paused === false) {
+      liveSeriesIds.add(row.test_series_id)
+    }
+  }
+  const filteredSeries = allSeries.filter((row) => {
+    if (row.exam_code !== examCode) return false
+    if (uiState.testSeries.filter === 'active') return row.is_active === true
+    if (uiState.testSeries.filter === 'inactive') return row.is_active !== true
+    if (uiState.testSeries.filter === 'live_active') return row.is_active === true && liveSeriesIds.has(row.test_series_id)
+    return true
+  })
+  const filteredMocks = allMocks.filter((row) => {
+    if (row.exam_code !== examCode) return false
+    if (uiState.testSeries.filter === 'active') return row.is_active === true
+    if (uiState.testSeries.filter === 'inactive') return row.is_active !== true
+    if (uiState.testSeries.filter === 'live_active') return row.is_active === true && row.is_live === true && row.is_paused !== true
+    return true
+  })
   return {
     title: 'Test Series',
     subtitle: 'Series, mocks, and mapping rows.',
-    cards: [{ label: 'Series', value: (seriesRes.data || []).length }, { label: 'Mocks', value: (mocksRes.data || []).length }],
-    body: [
-      renderTable(seriesRes.data || [], {
-        title: 'Series',
-        columns: ['test_series_id', 'exam_code', 'series_name', 'is_active', 'created_at'],
-        labels: { test_series_id: 'Series ID', exam_code: 'Exam', series_name: 'Series Name', is_active: 'Active', created_at: 'Created' },
-        emptyText: 'No test series.',
-      }),
-      renderTable(mocksRes.data || [], {
-        title: 'Mocks',
-        columns: ['mock_test_id', 'exam_code', 'mock_name', 'is_active', 'is_live', 'is_paused'],
-        labels: { mock_test_id: 'Mock ID', exam_code: 'Exam', mock_name: 'Mock Name', is_active: 'Active', is_live: 'Live', is_paused: 'Paused' },
-        emptyText: 'No mocks.',
-      }),
-      renderTable(mapsRes.data || [], {
-        title: 'Mappings',
-        columns: ['test_series_id', 'mock_test_id', 'display_order'],
-        labels: { test_series_id: 'Series', mock_test_id: 'Mock', display_order: 'Order' },
-        emptyText: 'No mappings.',
-      }),
-    ].join(''),
+    cards: [{ label: 'Series', value: filteredSeries.length }, { label: 'Mocks', value: filteredMocks.length }],
+    body: `
+      <div class="panel">
+        <div class="form-grid" style="grid-template-columns:repeat(4,minmax(0,1fr));align-items:end">
+          <select class="kap-input" id="seriesExamCode">
+            ${['GPSC', 'GPSC_Gujarati', 'GPSC_English', 'PSI', 'POLICE'].map((code) => `<option value="${code}" ${code === examCode ? 'selected' : ''}>${code}</option>`).join('')}
+          </select>
+          <input class="kap-input" id="seriesName" placeholder="Series Name" />
+          <input class="kap-input" id="seriesDescription" placeholder="Description" />
+          <input class="kap-input" id="seriesPrice" placeholder="Price" />
+          <button class="kap-btn kap-btn-primary" data-action="series-create">Create Series</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="form-grid" style="grid-template-columns:repeat(4,minmax(0,1fr));align-items:end">
+          <select class="kap-input" id="seriesMapSeries">
+            ${(filteredSeries.length ? filteredSeries : allSeries).map((row) => `<option value="${escapeHtml(row.test_series_id)}">${escapeHtml(row.series_name)} (${escapeHtml(row.exam_code)})</option>`).join('')}
+          </select>
+          <select class="kap-input" id="seriesMapMock">
+            ${(filteredMocks.length ? filteredMocks : allMocks).map((row) => `<option value="${escapeHtml(row.mock_test_id)}">${escapeHtml(row.mock_name)} (${escapeHtml(row.exam_code)})</option>`).join('')}
+          </select>
+          <input class="kap-input" id="seriesMapOrder" value="1" />
+          <button class="kap-btn kap-btn-primary" data-action="series-map">Map Mock</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="filter-bar">
+          ${(['all', 'active', 'inactive', 'live_active']).map((item) => `
+            <button class="kap-btn ${uiState.testSeries.filter === item ? 'kap-btn-primary' : 'kap-btn-outline'}" data-action="series-filter" data-status="${item}">
+              ${item.replaceAll('_', ' ')}
+            </button>
+          `).join('')}
+        </div>
+      </div>
+      <div class="stack">
+        ${(filteredSeries.length ? filteredSeries : allSeries).map((row) => `
+          <div class="panel">
+            <p><b>${escapeHtml(row.series_name)}</b></p>
+            <p class="muted">Series ID: ${escapeHtml(row.test_series_id)} | Exam: ${escapeHtml(row.exam_code)} | Active: ${row.is_active ? 'Yes' : 'No'}</p>
+            <div class="action-wrap">
+              <button class="kap-btn kap-btn-outline" data-action="series-toggle" data-series-id="${escapeHtml(row.test_series_id)}" data-field="is_active">Toggle Active</button>
+              <button class="kap-btn kap-btn-outline" data-action="series-edit" data-series-id="${escapeHtml(row.test_series_id)}">Edit</button>
+              <button class="kap-btn kap-btn-danger" data-action="series-delete" data-series-id="${escapeHtml(row.test_series_id)}">Delete</button>
+            </div>
+          </div>
+        `).join('') || '<div class="panel"><p>No test series.</p></div>'}
+        <div class="panel">
+          <p><b>Mocks</b></p>
+          <div class="stack">
+            ${(filteredMocks.length ? filteredMocks : allMocks).map((row) => `
+              <div class="panel" style="background:#f8fafc">
+                <p><b>${escapeHtml(row.mock_name)}</b></p>
+                <p class="muted">Mock ID: ${escapeHtml(row.mock_test_id)} | Exam: ${escapeHtml(row.exam_code)} | Active: ${row.is_active ? 'Yes' : 'No'} | Live: ${row.is_live ? 'Yes' : 'No'} | Paused: ${row.is_paused ? 'Yes' : 'No'}</p>
+                <div class="action-wrap">
+                  <button class="kap-btn kap-btn-outline" data-action="mock-toggle" data-mock-id="${escapeHtml(row.mock_test_id)}" data-field="is_active">Toggle Active</button>
+                  <button class="kap-btn kap-btn-outline" data-action="mock-toggle" data-mock-id="${escapeHtml(row.mock_test_id)}" data-field="is_live">Toggle Live</button>
+                  <button class="kap-btn kap-btn-outline" data-action="mock-toggle" data-mock-id="${escapeHtml(row.mock_test_id)}" data-field="is_paused">Toggle Paused</button>
+                </div>
+              </div>
+            `).join('') || '<p>No mocks.</p>'}
+          </div>
+        </div>
+        <div class="panel">
+          <p><b>Mappings</b></p>
+          <div class="stack">
+            ${(allMaps || []).map((row) => `
+              <div class="panel" style="background:#f8fafc">
+                <p>Series: ${escapeHtml(row.test_series_id)} | Mock: ${escapeHtml(row.mock_test_id)} | Order: ${escapeHtml(row.display_order)}</p>
+              </div>
+            `).join('') || '<p>No mappings.</p>'}
+          </div>
+        </div>
+      </div>
+    `,
+  }
+}
+
+async function loadTestSeriesNewMock() {
+  const page = await loadTestSeries()
+  return {
+    ...page,
+    title: 'Create New Mock Test',
+    subtitle: 'Use the same test-series data to create and map a new mock.',
+  }
+}
+
+async function loadTestSeriesAllQuestions() {
+  const page = await loadTestSeries()
+  return {
+    ...page,
+    title: 'All Questions',
+    subtitle: 'Mock-wise question management view.',
   }
 }
 
@@ -551,12 +836,32 @@ async function loadAdminUsers() {
     title: 'Admin Users',
     subtitle: 'Admin role rows from ngm_admin_roles.',
     cards: [{ label: 'Admin rows', value: (data || []).length }],
-    body: renderTable(data || [], {
-      title: 'Roles',
-      columns: ['user_id', 'role', 'is_active'],
-      labels: { user_id: 'User ID', role: 'Role', is_active: 'Active' },
-      emptyText: 'No admin roles.',
-    }),
+    body: `
+      <div class="panel">
+        <p style="font-weight:800;margin:0 0 10px 0">Assign Role (Owner only)</p>
+        <div class="form-grid">
+          <input class="kap-input" id="adminAssignEmail" type="email" placeholder="User Email" />
+          <select class="kap-input" id="adminAssignRole">
+            <option value="moderator">moderator</option>
+            <option value="sales_agent">sales_agent</option>
+            <option value="sales_manager">sales_manager</option>
+            <option value="admin">admin</option>
+            <option value="owner">owner</option>
+          </select>
+          <button class="kap-btn kap-btn-primary" data-action="admin-assign">Assign</button>
+        </div>
+      </div>
+      <div class="stack">
+        ${(data || []).map((row) => `
+          <div class="panel">
+            <p><b>User:</b> ${escapeHtml(row.user_id)}</p>
+            <p><b>Role:</b> <span class="kap-chip">${escapeHtml(row.role)}</span></p>
+            <p><b>Active:</b> ${row.is_active ? 'Yes' : 'No'}</p>
+            ${row.role !== 'owner' && row.is_active ? `<button class="kap-btn kap-btn-outline" data-action="admin-deactivate" data-user-id="${escapeHtml(row.user_id)}" data-role="${escapeHtml(row.role)}">Deactivate</button>` : ''}
+          </div>
+        `).join('') || '<div class="panel"><p>No admin roles found.</p></div>'}
+      </div>
+    `,
   }
 }
 
@@ -700,6 +1005,75 @@ async function loadAnalyticsRevenue() {
   }
 }
 
+async function loadUserProfile() {
+  const userId = getQueryParam('userId')
+  if (!userId) {
+    return {
+      title: 'User Profile',
+      subtitle: 'Open a specific user with ?userId=...',
+      cards: [],
+      body: `<div class="panel"><p>Missing <code>userId</code> in the URL.</p></div>`,
+    }
+  }
+
+  const [userRes, overviewRes, followersRes, followingRes, postsRes] = await Promise.all([
+    supabase.from('ngm_users').select('*').eq('user_id', userId).maybeSingle(),
+    supabase.rpc('ngm_get_creator_overview', { p_user_id: userId, p_range: 'month' }),
+    supabase.from('ngm_user_followers').select('follow_id', { head: true, count: 'exact' }).eq('following_user_id', userId),
+    supabase.from('ngm_user_followers').select('follow_id', { head: true, count: 'exact' }).eq('follower_user_id', userId),
+    supabase.from('ngm_user_posts').select('post_id', { head: true, count: 'exact' }).eq('user_id', userId),
+  ])
+
+  const error = userRes.error ?? overviewRes.error ?? followersRes.error ?? followingRes.error ?? postsRes.error
+  if (error) throw error
+
+  const userData = userRes.data || {}
+  const root = (Array.isArray(overviewRes.data) ? overviewRes.data[0] : overviewRes.data) || {}
+  const overview = root.overview || root.ngm_get_creator_overview || root
+
+  return {
+    title: 'User Profile',
+    subtitle: 'Creator overview and profile meta.',
+    cards: [
+      { label: 'Posts', value: Number(postsRes.count ?? 0) },
+      { label: 'Followers', value: Number(followersRes.count ?? 0) },
+      { label: 'Following', value: Number(followingRes.count ?? 0) },
+      { label: 'Verified', value: String(Boolean(userData.is_verified ?? false)) },
+    ],
+    body: `
+      <div class="panel">
+        <div class="row-between">
+          <div>
+            <p class="eyebrow">Profile</p>
+            <h3 style="margin:4px 0 10px 0">${escapeHtml(userData.full_name || userData.username || userId)}</h3>
+            <p class="muted">User ID: ${escapeHtml(userId)}</p>
+          </div>
+          <a href="javascript:history.back()" class="secondary-btn">Back</a>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="panel">
+          <p><b>Full Name:</b> ${escapeHtml(userData.full_name || '-')}</p>
+          <p><b>Username:</b> ${escapeHtml(userData.username ? `@${userData.username}` : '-')}</p>
+          <p><b>Email:</b> ${escapeHtml(userData.email || '-')}</p>
+          <p><b>Mobile:</b> ${escapeHtml(userData.mobile || '-')}</p>
+          <p><b>District:</b> ${escapeHtml(userData.district || '-')}</p>
+          <p><b>Verified:</b> <span class="kap-chip">${escapeHtml(String(Boolean(userData.is_verified ?? false)))}</span></p>
+          ${userData.bio ? `<p><b>Bio:</b> ${escapeHtml(userData.bio)}</p>` : ''}
+        </div>
+        <div class="panel">
+          <p><b>Creator Overview (Month)</b></p>
+          <p>Posts: ${escapeHtml(overview.posts_count ?? 0)}</p>
+          <p>Total Views: ${escapeHtml(overview.total_views ?? 0)}</p>
+          <p>Likes: ${escapeHtml(overview.likes_count ?? 0)}</p>
+          <p>Comments: ${escapeHtml(overview.comments_count ?? 0)}</p>
+          <p>Profile Visits: ${escapeHtml(overview.profile_visits ?? 0)}</p>
+        </div>
+      </div>
+    `,
+  }
+}
+
 async function loadPageData() {
   const loaders = {
     'verification-requests': loadVerificationRequests,
@@ -720,6 +1094,9 @@ async function loadPageData() {
     'audit-logs': loadAuditLogs,
     analytics: loadAnalytics,
     'analytics-revenue': loadAnalyticsRevenue,
+    'user-profile': loadUserProfile,
+    'test-series-new-mock': loadTestSeriesNewMock,
+    'test-series-all-questions': loadTestSeriesAllQuestions,
   }
 
   const load = loaders[moduleKey]
@@ -766,6 +1143,9 @@ async function refreshPage() {
     'audit-logs': ROLE_GROUPS.ownerOnly,
     analytics: ROLE_GROUPS.ownerOnly,
     'analytics-revenue': ROLE_GROUPS.ownerOnly,
+    'user-profile': ROLE_GROUPS.moderation,
+    'test-series-new-mock': ROLE_GROUPS.sales,
+    'test-series-all-questions': ROLE_GROUPS.sales,
   }
   const allowed = accessGroups[moduleKey] || ROLE_GROUPS.moderation
 
@@ -791,6 +1171,441 @@ async function refreshPage() {
   if (moduleMeta) moduleMeta.innerHTML = renderCards(page.cards)
   if (moduleContent) moduleContent.innerHTML = page.body
 
+  if (moduleContent) {
+    moduleContent.onclick = async (event) => {
+      const target = event.target?.closest?.('[data-action]')
+      if (!target) return
+      const action = target.dataset.action
+
+      if (action === 'verification-filter') {
+        uiState.verificationStatus = target.dataset.status || 'pending'
+        await refreshPage()
+        return
+      }
+
+      if (action === 'verification-overview') {
+        const userId = target.dataset.userId || ''
+        if (!userId) return
+        if (uiState.verification.openUserId === userId) {
+          uiState.verification.openUserId = ''
+          await refreshPage()
+          return
+        }
+        if (uiState.verification.overviewByUserId[userId]) {
+          uiState.verification.openUserId = userId
+          await refreshPage()
+          return
+        }
+        uiState.verification.loadingUserId = userId
+        await refreshPage()
+        const { data } = await supabase.rpc('ngm_get_creator_overview', { p_user_id: userId, p_range: 'month' })
+        const root = Array.isArray(data) ? data[0] : data
+        const overview = root?.overview || root?.ngm_get_creator_overview || root || {}
+        uiState.verification.loadingUserId = ''
+        uiState.verification.overviewByUserId[userId] = overview
+        uiState.verification.openUserId = userId
+        await refreshPage()
+        return
+      }
+
+      if (action === 'verification-review') {
+        const requestId = target.dataset.requestId || ''
+        const nextStatus = target.dataset.status || ''
+        if (!requestId || !nextStatus) return
+        const reviewNote = window.prompt('Review note (optional):') ?? null
+        const { error } = await supabase.rpc('ngm_admin_review_verification', {
+          p_request_id: requestId,
+          p_status: nextStatus,
+          p_review_note: reviewNote,
+        })
+        if (error) {
+          setMessage(error.message)
+          return
+        }
+        await refreshPage()
+        return
+      }
+
+      if (action === 'report-reply') {
+        const reportSource = target.dataset.source || ''
+        const reportId = target.dataset.id || ''
+        const reportedBy = target.dataset.reportedBy || ''
+        if (!reportSource || !reportId || !reportedBy) return
+        const replyText = window.prompt('Reply text') ?? ''
+        if (!replyText.trim()) return
+        const { data: authData } = await supabase.auth.getUser()
+        const me = authData.user
+        if (!me) return
+        const { error } = await supabase.from('ngm_report_replies').insert({
+          report_table: `ngm_${reportSource}_reports`,
+          report_id: reportId,
+          user_id: reportedBy,
+          admin_user_id: me.id,
+          reply_text: replyText.trim(),
+        })
+        if (error) {
+          setMessage(error.message)
+          return
+        }
+        await refreshPage()
+        return
+      }
+
+      if (action === 'report-resolve') {
+        const reportSource = target.dataset.source || ''
+        const reportId = target.dataset.id || ''
+        const mode = target.dataset.mode || 'keep'
+        if (!reportSource || !reportId) return
+        const note = window.prompt(mode === 'delete' ? 'Reason for deleting content (optional):' : 'Reason for keeping content (optional):') ?? null
+        const { data, error } = await supabase.rpc('ngm_admin_resolve_report', {
+          p_report_table: `ngm_${reportSource}_reports`,
+          p_report_id: reportId,
+          p_action: mode,
+          p_note: note,
+        })
+        if (error) {
+          setMessage(error.message)
+          return
+        }
+        setMessage(`Updated: ${data?.status ?? 'done'}`)
+        await refreshPage()
+        return
+      }
+
+      if (action === 'affiliate-filter') {
+        uiState.affiliateRequests.status = target.dataset.status || 'pending'
+        await refreshPage()
+        return
+      }
+
+      if (action === 'affiliate-approve') {
+        const applicationId = target.dataset.applicationId || ''
+        if (!applicationId) return
+        const codeInput = moduleContent.querySelector(`[data-field="affiliate-code"][data-application-id="${CSS.escape(applicationId)}"]`)
+        const percentInput = moduleContent.querySelector(`[data-field="affiliate-percent"][data-application-id="${CSS.escape(applicationId)}"]`)
+        const code = codeInput?.value?.trim().toUpperCase() || ''
+        const percent = Number(percentInput?.value ?? '10')
+        if (!code) {
+          setMessage('Affiliate code required.')
+          return
+        }
+        if (!Number.isFinite(percent) || percent < 0 || percent > 100) {
+          setMessage('Commission % invalid.')
+          return
+        }
+        const { error } = await supabase.rpc('kls_approve_affiliate_application', {
+          p_application_id: applicationId,
+          p_affiliate_code: code,
+          p_commission_percent: percent,
+        })
+        if (error) {
+          setMessage(error.message)
+          return
+        }
+        await refreshPage()
+        return
+      }
+
+      if (action === 'affiliate-reject') {
+        const applicationId = target.dataset.applicationId || ''
+        if (!applicationId) return
+        const reason = window.prompt('Reject reason') ?? ''
+        if (!reason.trim()) return
+        const { error } = await supabase.rpc('kls_reject_affiliate_application', {
+          p_application_id: applicationId,
+          p_rejection_reason: reason.trim(),
+        })
+        if (error) {
+          setMessage(error.message)
+          return
+        }
+        await refreshPage()
+        return
+      }
+
+      if (action === 'admin-assign') {
+        const email = (document.getElementById('adminAssignEmail')?.value || '').trim().toLowerCase()
+        const role = document.getElementById('adminAssignRole')?.value || 'moderator'
+        if (!email) {
+          setMessage('Email required.')
+          return
+        }
+        const { error } = await supabase.rpc('ngm_owner_set_admin_role_by_email', {
+          p_email: email,
+          p_role: role,
+          p_is_active: true,
+        })
+        if (error) {
+          setMessage(error.message)
+          return
+        }
+        await refreshPage()
+        return
+      }
+
+      if (action === 'admin-deactivate') {
+        const userId = target.dataset.userId || ''
+        const role = target.dataset.role || ''
+        if (!userId || !role) return
+        const { error } = await supabase.rpc('ngm_owner_set_admin_role', {
+          p_user_id: userId,
+          p_role: role,
+          p_is_active: false,
+        })
+        if (error) {
+          setMessage(error.message)
+          return
+        }
+        await refreshPage()
+        return
+      }
+
+      if (action === 'plan-save') {
+        const code = (document.getElementById('planCode')?.value || '').trim().toUpperCase()
+        const name = (document.getElementById('planName')?.value || '').trim()
+        const description = (document.getElementById('planDescription')?.value || '').trim()
+        const months = Number(document.getElementById('planMonths')?.value || '0')
+        const price = Number(document.getElementById('planPrice')?.value || '0')
+        if (!code || !name || !Number.isFinite(months) || !Number.isFinite(price)) {
+          setMessage('Invalid input.')
+          return
+        }
+        const { error } = await supabase
+          .from('kls_subscription_plans')
+          .upsert({
+            plan_code: code,
+            plan_name: name,
+            plan_description: description || null,
+            duration_months: months,
+            price,
+            currency_code: 'INR',
+            is_active: true,
+          }, { onConflict: 'plan_code' })
+        if (error) {
+          setMessage(error.message)
+          return
+        }
+        await refreshPage()
+        return
+      }
+
+      if (action === 'plan-toggle') {
+        const planId = target.dataset.planId || ''
+        if (!planId) return
+        const nextActive = target.dataset.active !== '1'
+        const { error } = await supabase.from('kls_subscription_plans').update({ is_active: nextActive }).eq('subscription_plan_id', planId)
+        if (error) {
+          setMessage(error.message)
+          return
+        }
+        await refreshPage()
+        return
+      }
+
+      if (action === 'plan-edit') {
+        const planId = target.dataset.planId || ''
+        if (!planId) return
+        const currentPlan = await supabase.from('kls_subscription_plans').select('*').eq('subscription_plan_id', planId).maybeSingle()
+        if (currentPlan.error) {
+          setMessage(currentPlan.error.message)
+          return
+        }
+        const row = currentPlan.data || {}
+        const nextCode = window.prompt('Plan code', row.plan_code ?? '') ?? ''
+        const nextName = window.prompt('Plan name', row.plan_name ?? '') ?? ''
+        const nextDesc = window.prompt('Description', row.plan_description ?? '') ?? ''
+        const nextMonths = Number(window.prompt('Duration months', String(row.duration_months ?? 12)) ?? '0')
+        const nextPrice = Number(window.prompt('Price INR', String(row.price ?? 0)) ?? '0')
+        if (!nextCode.trim() || !nextName.trim() || !Number.isFinite(nextMonths) || !Number.isFinite(nextPrice)) {
+          setMessage('Invalid input.')
+          return
+        }
+        const { error } = await supabase
+          .from('kls_subscription_plans')
+          .update({
+            plan_code: nextCode.trim().toUpperCase(),
+            plan_name: nextName.trim(),
+            plan_description: nextDesc.trim() || null,
+            duration_months: nextMonths,
+            price: nextPrice,
+          })
+          .eq('subscription_plan_id', planId)
+        if (error) {
+          setMessage(error.message)
+          return
+        }
+        await refreshPage()
+        return
+      }
+
+      if (action === 'series-filter') {
+        uiState.testSeries.filter = target.dataset.status || 'all'
+        await refreshPage()
+        return
+      }
+
+      if (action === 'series-create') {
+        const examCode = document.getElementById('seriesExamCode')?.value || 'GPSC'
+        const seriesName = (document.getElementById('seriesName')?.value || '').trim()
+        const seriesDescription = (document.getElementById('seriesDescription')?.value || '').trim()
+        const seriesPrice = Number(document.getElementById('seriesPrice')?.value || '0')
+        if (!examCode || !seriesName || !Number.isFinite(seriesPrice)) {
+          setMessage('Exam, series name and price required.')
+          return
+        }
+        const { error } = await supabase.from('kls_test_series').insert({
+          exam_code: examCode,
+          series_name: seriesName,
+          series_description: seriesDescription || null,
+          series_price: seriesPrice,
+          currency_code: 'INR',
+          is_active: true,
+          is_visible: true,
+        })
+        if (error) {
+          setMessage(error.message)
+          return
+        }
+        await refreshPage()
+        return
+      }
+
+      if (action === 'series-map') {
+        const testSeriesId = document.getElementById('seriesMapSeries')?.value || ''
+        const mockTestId = document.getElementById('seriesMapMock')?.value || ''
+        const displayOrder = Number(document.getElementById('seriesMapOrder')?.value || '1')
+        if (!testSeriesId || !mockTestId || !Number.isFinite(displayOrder) || displayOrder <= 0) {
+          setMessage('Select series, mock and valid order.')
+          return
+        }
+        const { error } = await supabase.from('kls_test_series_mocks').upsert({
+          test_series_id: testSeriesId,
+          mock_test_id: mockTestId,
+          display_order: displayOrder,
+        })
+        if (error) {
+          setMessage(error.message)
+          return
+        }
+        await refreshPage()
+        return
+      }
+
+      if (action === 'series-toggle') {
+        const seriesId = target.dataset.seriesId || ''
+        const field = target.dataset.field || 'is_active'
+        if (!seriesId) return
+        const { data, error: currentError } = await supabase.from('kls_test_series').select('is_active').eq('test_series_id', seriesId).maybeSingle()
+        if (currentError) {
+          setMessage(currentError.message)
+          return
+        }
+        const patch = { [field]: !(data?.is_active ?? false) }
+        const { error } = await supabase.from('kls_test_series').update(patch).eq('test_series_id', seriesId)
+        if (error) {
+          setMessage(error.message)
+          return
+        }
+        await refreshPage()
+        return
+      }
+
+      if (action === 'series-edit') {
+        const seriesId = target.dataset.seriesId || ''
+        if (!seriesId) return
+        const currentSeries = await supabase.from('kls_test_series').select('*').eq('test_series_id', seriesId).maybeSingle()
+        if (currentSeries.error) {
+          setMessage(currentSeries.error.message)
+          return
+        }
+        const row = currentSeries.data || {}
+        const nextExam = window.prompt('Exam code', row.exam_code ?? '') ?? ''
+        const nextName = window.prompt('Series name', row.series_name ?? '') ?? ''
+        const nextDesc = window.prompt('Description', row.series_description ?? '') ?? ''
+        const nextPrice = Number(window.prompt('Price', String(row.series_price ?? 0)) ?? '0')
+        if (!nextExam.trim() || !nextName.trim() || !Number.isFinite(nextPrice)) {
+          setMessage('Invalid input.')
+          return
+        }
+        const { error } = await supabase.from('kls_test_series').update({
+          exam_code: nextExam.trim().toUpperCase(),
+          series_name: nextName.trim(),
+          series_description: nextDesc.trim() || null,
+          series_price: nextPrice,
+        }).eq('test_series_id', seriesId)
+        if (error) {
+          setMessage(error.message)
+          return
+        }
+        await refreshPage()
+        return
+      }
+
+      if (action === 'series-delete') {
+        const seriesId = target.dataset.seriesId || ''
+        if (!seriesId) return
+        const confirmText = window.prompt('Type DELETE to confirm series delete') ?? ''
+        if (confirmText.trim().toUpperCase() !== 'DELETE') return
+        await supabase.from('kls_test_series_mocks').delete().eq('test_series_id', seriesId)
+        const { error } = await supabase.from('kls_test_series').delete().eq('test_series_id', seriesId)
+        if (error) {
+          setMessage(error.message)
+          return
+        }
+        await refreshPage()
+        return
+      }
+
+      if (action === 'mock-toggle') {
+        const mockId = target.dataset.mockId || ''
+        const field = target.dataset.field || 'is_active'
+        if (!mockId) return
+        const current = await supabase.from('kls_mock_tests').select('is_active,is_live,is_paused').eq('mock_test_id', mockId).maybeSingle()
+        if (current.error) {
+          setMessage(current.error.message)
+          return
+        }
+        const next = { is_active: current.data?.is_active ?? false, is_live: current.data?.is_live ?? false, is_paused: current.data?.is_paused ?? false }
+        next[field] = !next[field]
+        if (field === 'is_live' && next.is_live) next.is_paused = false
+        if (field === 'is_paused' && next.is_paused) next.is_live = true
+        const { error } = await supabase.from('kls_mock_tests').update(next).eq('mock_test_id', mockId)
+        if (error) {
+          setMessage(error.message)
+          return
+        }
+        await refreshPage()
+        return
+      }
+
+      if (action === 'payout-save') {
+        const selectedUser = document.getElementById('payoutUser')?.value || ''
+        const amount = Number(document.getElementById('payoutAmount')?.value || '0')
+        const notes = (document.getElementById('payoutNotes')?.value || '').trim()
+        if (!selectedUser || !Number.isFinite(amount) || amount <= 0) {
+          setMessage('Select user and valid amount.')
+          return
+        }
+        const { data: authData } = await supabase.auth.getUser()
+        const me = authData.user
+        if (!me) return
+        const { error } = await supabase.from('kls_affiliate_payouts').insert({
+          affiliate_user_id: selectedUser,
+          amount,
+          paid_by: me.id,
+          notes: notes || null,
+        })
+        if (error) {
+          setMessage(error.message)
+          return
+        }
+        await refreshPage()
+        return
+      }
+
+    }
+  }
+
   if (moduleKey === 'notification-broadcast') {
     const sendBtn = document.getElementById('sendBroadcastBtn')
     if (sendBtn) {
@@ -813,9 +1628,20 @@ async function refreshPage() {
         }
         setMessage(`Notification sent successfully to ${Number(data ?? 0)} users.`, false)
       })
+      }
+    }
+
+    moduleContent.onchange = async (event) => {
+      const target = event.target
+      if (!target || !(target instanceof HTMLElement)) return
+
+      if (target.id === 'seriesExamCode') {
+        uiState.testSeries.examCode = target.value || 'GPSC'
+        await refreshPage()
+        return
+      }
     }
   }
-}
 
 async function login() {
   setMessage('')
