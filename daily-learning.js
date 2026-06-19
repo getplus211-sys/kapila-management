@@ -30,6 +30,7 @@ const state = {
   selectedSubjectId: '',
   selectedChapterCode: '',
   selectedQuizId: 'all',
+  activeTab: 'all',
   search: '',
   quizName: 'Daily Learning',
   timeLimit: '15',
@@ -182,6 +183,7 @@ function render() {
   const selectedSet = new Set(state.selectedQuestionIds)
   const selectedQuestions = state.questions.filter((q) => selectedSet.has(q.id))
   const unselectedQuestions = state.questions.filter((q) => !selectedSet.has(q.id))
+  const visibleQuestions = state.activeTab === 'selected' ? selectedQuestions : state.questions
 
   dailyContent.innerHTML = `
     <div class="panel">
@@ -208,13 +210,19 @@ function render() {
       </div>
     </div>
     <div class="panel table-card">
-      <p style="margin:0 0 12px 0;color:#475569">Selected ${state.selectedQuestionIds.length} questions</p>
+      <div class="row-between" style="gap:12px;flex-wrap:wrap;margin-bottom:12px">
+        <div class="action-wrap">
+          <button class="kap-btn ${state.activeTab === 'all' ? 'kap-btn-primary' : 'kap-btn-outline'}" data-tab="all">All Questions</button>
+          <button class="kap-btn ${state.activeTab === 'selected' ? 'kap-btn-primary' : 'kap-btn-outline'}" data-tab="selected">Selected Questions</button>
+        </div>
+        <p style="margin:0;color:#475569">Selected ${state.selectedQuestionIds.length} questions</p>
+      </div>
       <table>
         <thead>
           <tr><th>Status</th><th>Question</th><th>Quiz</th><th>Chapter</th><th>Difficulty</th><th>Action</th></tr>
         </thead>
         <tbody>
-          ${selectedQuestions.map((q) => `
+          ${(state.activeTab === 'selected' ? selectedQuestions : visibleQuestions).map((q) => `
             <tr>
               <td><span class="kap-chip">Selected</span></td>
               <td>${escapeHtml(q.question || '-')}</td>
@@ -223,7 +231,7 @@ function render() {
               <td>${escapeHtml(q.difficulty_level || '-')}</td>
               <td><button class="kap-btn kap-btn-outline" data-toggle-id="${escapeHtml(q.id)}">Unselect</button></td>
             </tr>`).join('')}
-          ${unselectedQuestions.map((q) => `
+          ${state.activeTab === 'all' ? unselectedQuestions.map((q) => `
             <tr>
               <td><span class="kap-chip">Unselected</span></td>
               <td>${escapeHtml(q.question || '-')}</td>
@@ -231,7 +239,7 @@ function render() {
               <td>${escapeHtml(q.chapter_code || '-')}</td>
               <td>${escapeHtml(q.difficulty_level || '-')}</td>
               <td><button class="kap-btn kap-btn-primary" data-toggle-id="${escapeHtml(q.id)}">Select</button></td>
-            </tr>`).join('')}
+            </tr>`).join('') : ''}
           ${!state.questions.length ? '<tr><td colspan="6">No questions found.</td></tr>' : ''}
         </tbody>
       </table>
@@ -279,6 +287,13 @@ function render() {
     state.timeLimit = event.target.value || '15'
   })
 
+  dailyContent.querySelectorAll('[data-tab]').forEach((button) => {
+    button.addEventListener('click', () => {
+      state.activeTab = button.getAttribute('data-tab') || 'all'
+      render()
+    })
+  })
+
   dailyContent.querySelectorAll('[data-toggle-id]').forEach((button) => {
     button.addEventListener('click', () => {
       const id = button.getAttribute('data-toggle-id') || ''
@@ -298,6 +313,7 @@ function render() {
       }
       if (action === 'clear') {
         state.selectedQuestionIds = []
+        state.activeTab = 'all'
         render()
       }
       if (action === 'toggle-live') {
