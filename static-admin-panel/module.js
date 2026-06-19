@@ -32,6 +32,7 @@ const uiState = {
     search: '',
     quizName: 'Daily Learning',
     timeLimit: '15',
+    isEnabled: false,
     selectedQuestionIds: [],
     subjects: [],
     chapters: [],
@@ -964,9 +965,17 @@ async function loadDailyLearning() {
   if (quizRes.error) throw quizRes.error
   const quizzes = (quizRes.data || [])
   uiState.daily.quizzes = quizzes
+  const todayQuizId = dailyQuizIdForDate(new Date())
+  const todayQuizRes = await supabase
+    .from('kls_quizzes')
+    .select('quiz_id,is_active')
+    .eq('quiz_id', todayQuizId)
+    .maybeSingle()
+  if (todayQuizRes.error) throw todayQuizRes.error
   if (uiState.daily.quizId !== 'all' && !quizzes.some((quiz) => quiz.quiz_id === uiState.daily.quizId)) {
     uiState.daily.quizId = 'all'
   }
+  uiState.daily.isEnabled = todayQuizRes.data?.is_active === true
 
   let questionQuery = supabase
     .from('kls_questions')
@@ -983,6 +992,9 @@ async function loadDailyLearning() {
   if (questionRes.error) throw questionRes.error
   const questions = (questionRes.data || [])
   uiState.daily.questions = questions
+  const selectedQuestionSet = new Set(uiState.daily.selectedQuestionIds || [])
+  const selectedQuestions = questions.filter((question) => selectedQuestionSet.has(question.id))
+  const unselectedQuestions = questions.filter((question) => !selectedQuestionSet.has(question.id))
   return {
     title: 'Daily Learning Manager',
     subtitle: 'Select questions and publish today’s daily quiz.',
@@ -1003,6 +1015,9 @@ async function loadDailyLearning() {
           <div class="action-wrap">
             <button class="kap-btn kap-btn-outline" data-action="daily-refresh">Refresh</button>
             <button class="kap-btn kap-btn-outline" data-action="daily-clear">Clear Selection</button>
+            <button class="kap-btn ${uiState.daily.isEnabled ? 'kap-btn-primary' : 'kap-btn-outline'}" data-action="daily-toggle-live">
+              ${uiState.daily.isEnabled ? 'Daily On' : 'Daily Off'}
+            </button>
             <button class="kap-btn kap-btn-primary" data-action="daily-publish">Publish Today</button>
           </div>
         </div>
@@ -1031,29 +1046,43 @@ async function loadDailyLearning() {
           <input id="dailyTimeLimit" class="kap-input" placeholder="Time limit" value="${escapeHtml(uiState.daily.timeLimit)}" />
         </div>
       </div>
-      <p style="margin:0 0 12px 0;color:#475569">Selected ${uiState.daily.selectedQuestionIds.length} questions</p>
-      <div class="stack">
-        ${questions.length ? questions.map((question, index) => `
-          <div class="panel">
-            <div class="row-between">
-              <div>
-                <p><b>#${index + 1}</b> ${escapeHtml(question.question || '-')}</p>
-                <p class="muted">Quiz: ${escapeHtml(question.quiz_id)} | Chapter: ${escapeHtml(question.chapter_code || '-')} | Difficulty: ${escapeHtml(question.difficulty_level || '-')}</p>
-              </div>
-              <button class="kap-btn ${uiState.daily.selectedQuestionIds.includes(question.id) ? 'kap-btn-primary' : 'kap-btn-outline'}" data-action="daily-toggle-question" data-question-id="${escapeHtml(question.id)}">
-                ${uiState.daily.selectedQuestionIds.includes(question.id) ? 'Selected' : 'Select'}
-              </button>
-            </div>
-            <div class="stack" style="margin-top:8px">
-              <p><b>A.</b> ${escapeHtml(question.option_a || '-')}</p>
-              <p><b>B.</b> ${escapeHtml(question.option_b || '-')}</p>
-              <p><b>C.</b> ${escapeHtml(question.option_c || '-')}</p>
-              <p><b>D.</b> ${escapeHtml(question.option_d || '-')}</p>
-              ${question.option_e ? `<p><b>E.</b> ${escapeHtml(question.option_e)}</p>` : ''}
-              ${question.suggestion ? `<p><b>Suggestion:</b> ${escapeHtml(question.suggestion)}</p>` : ''}
-            </div>
-          </div>
-        `).join('') : '<div class="panel"><p>No questions found.</p></div>'}
+      <div class="panel table-card">
+        <p style="margin:0 0 12px 0;color:#475569">Selected ${uiState.daily.selectedQuestionIds.length} questions</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Status</th>
+              <th>Question</th>
+              <th>Quiz</th>
+              <th>Chapter</th>
+              <th>Difficulty</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${selectedQuestions.map((question) => `
+              <tr>
+                <td><span class="kap-chip">Selected</span></td>
+                <td>${escapeHtml(question.question || '-')}</td>
+                <td>${escapeHtml(question.quiz_id || '-')}</td>
+                <td>${escapeHtml(question.chapter_code || '-')}</td>
+                <td>${escapeHtml(question.difficulty_level || '-')}</td>
+                <td><button class="kap-btn kap-btn-outline" data-action="daily-toggle-question" data-question-id="${escapeHtml(question.id)}">Unselect</button></td>
+              </tr>
+            `).join('')}
+            ${unselectedQuestions.map((question) => `
+              <tr>
+                <td><span class="kap-chip">Unselected</span></td>
+                <td>${escapeHtml(question.question || '-')}</td>
+                <td>${escapeHtml(question.quiz_id || '-')}</td>
+                <td>${escapeHtml(question.chapter_code || '-')}</td>
+                <td>${escapeHtml(question.difficulty_level || '-')}</td>
+                <td><button class="kap-btn kap-btn-primary" data-action="daily-toggle-question" data-question-id="${escapeHtml(question.id)}">Select</button></td>
+              </tr>
+            `).join('')}
+            ${!questions.length ? '<tr><td colspan="6">No questions found.</td></tr>' : ''}
+          </tbody>
+        </table>
       </div>
     `,
   }
@@ -1608,6 +1637,45 @@ async function refreshPage() {
         return
       }
 
+      if (action === 'daily-toggle-live') {
+        const todayQuizId = dailyQuizIdForDate(new Date())
+        const { data: existingQuiz, error: existingQuizError } = await supabase
+          .from('kls_quizzes')
+          .select('quiz_id,quiz_name,subject_id,chapter_code,difficulty_level,total_questions,time_limit,is_active')
+          .eq('quiz_id', todayQuizId)
+          .maybeSingle()
+        if (existingQuizError) {
+          setMessage(existingQuizError.message)
+          return
+        }
+        if (!existingQuiz) {
+          setMessage('Publish today quiz first, then turn it on.')
+          return
+        }
+        const nextEnabled = !uiState.daily.isEnabled
+        const { error } = await supabase.from('kls_quizzes').update({ is_active: nextEnabled }).eq('quiz_id', todayQuizId)
+        if (error) {
+          setMessage(error.message)
+          return
+        }
+        await supabase.from('kls_daily_quiz_settings').upsert({
+          quiz_id: todayQuizId,
+          quiz_name: existingQuiz.quiz_name || 'Daily Learning',
+          source_quiz_id: existingQuiz.quiz_id,
+          subject_id: existingQuiz.subject_id || null,
+          chapter_code: existingQuiz.chapter_code || null,
+          difficulty_level: existingQuiz.difficulty_level || null,
+          total_questions: existingQuiz.total_questions ?? 0,
+          time_limit: existingQuiz.time_limit ?? 15,
+          is_enabled: nextEnabled,
+          updated_by: null,
+        }, { onConflict: 'quiz_id' })
+        uiState.daily.isEnabled = nextEnabled
+        setMessage(nextEnabled ? 'Daily quiz turned on.' : 'Daily quiz turned off.')
+        await refreshPage()
+        return
+      }
+
       if (action === 'daily-apply-search') {
         uiState.daily.search = (document.getElementById('dailySearchInput')?.value || '').trim()
         await refreshPage()
@@ -1649,7 +1717,7 @@ async function refreshPage() {
           difficulty_level: firstSelectedQuestion?.difficulty_level || selectedQuiz?.difficulty_level || null,
           total_questions: uiState.daily.selectedQuestionIds.length,
           time_limit: Number.isFinite(timeLimit) ? timeLimit : 15,
-          is_active: true,
+          is_active: uiState.daily.isEnabled,
         }
 
         const { error: quizDeleteError } = await supabase.from('kls_questions').delete().eq('quiz_id', todayQuizId)
