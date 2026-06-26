@@ -1,4 +1,9 @@
-<!DOCTYPE html><html lang="gu"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Daily Learning - KAPILA</title>
+<!DOCTYPE html>
+<html lang="gu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Daily Learning - KAPILA</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--primary:#6c5ce7;--primary-light:#a29bfe;--bg:#f0efff;--card:#fff;--text:#2d3436;--muted:#636e72;--border:#e0dff7;--green:#00b894;--red:#d63031;--orange:#e17055;--radius:10px;--shadow:0 2px 12px rgba(108,92,231,.1);}
@@ -68,54 +73,48 @@ label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bot
 .sync-time{font-size:11px;color:var(--muted);}
 @media(max-width:600px){.stats-row .stat-card{min-width:80px;}.page-title{font-size:18px;}}
 
-/* ── LAYOUT ── */
 .dl-wrap{display:flex;gap:14px;align-items:flex-start;}
 .quiz-list-panel{width:260px;flex-shrink:0;position:sticky;top:10px;}
 .editor-panel{flex:1;min-width:0;}
-/* ── QUIZ CARD ── */
 .quiz-card{border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:var(--card);cursor:pointer;transition:border-color .2s;}
 .quiz-card:hover{border-color:var(--primary-light);}
 .quiz-card.selected{border-color:var(--primary);background:#f5f3ff;}
 .quiz-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;}
-.quiz-card h4{font-size:14px;font-weight:700;margin:0;}
+.quiz-card h4{font-size:14px;font-weight:700;margin:0;flex:1;}
 .quiz-meta{font-size:11px;color:var(--muted);margin-top:4px;}
-/* ── TOGGLE ── */
-.toggle-wrap{display:flex;align-items:center;gap:6px;}
-.toggle{position:relative;width:40px;height:22px;flex-shrink:0;}
+.toggle{position:relative;width:40px;height:22px;flex-shrink:0;display:inline-block;}
 .toggle input{opacity:0;width:0;height:0;position:absolute;}
 .toggle-slider{position:absolute;inset:0;border-radius:22px;background:#ccc;cursor:pointer;transition:.3s;}
 .toggle input:checked+.toggle-slider{background:var(--green);}
-.toggle-slider:before{content:'';position:absolute;width:16px;height:16px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s;}
+.toggle-slider:before{content:"";position:absolute;width:16px;height:16px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s;}
 .toggle input:checked+.toggle-slider:before{transform:translateX(18px);}
+.toggle-wrap{display:flex;align-items:center;gap:6px;}
 .toggle-label{font-size:12px;font-weight:700;}
-/* ── FILTER ROW ── */
 .filter-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
 .filter-row select{flex:1;min-width:130px;}
-/* ── QUESTIONS BROWSE ── */
 .q-browse{border:1px solid var(--border);border-radius:8px;max-height:320px;overflow-y:auto;background:#fafafa;}
 .q-item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;}
 .q-item:last-child{border-bottom:none;}
 .q-item:hover{background:#f0efff;}
-.q-item.already{opacity:.45;pointer-events:none;}
+.q-item.already{opacity:.4;pointer-events:none;}
 .q-text{flex:1;line-height:1.5;}
-.q-badge{font-size:10px;padding:2px 7px;border-radius:8px;white-space:nowrap;flex-shrink:0;margin-top:2px;}
+.q-badge{font-size:10px;padding:2px 7px;border-radius:8px;white-space:nowrap;font-weight:700;}
 .q-easy{background:#d4edda;color:#155724;}
 .q-medium{background:#fff3cd;color:#856404;}
 .q-hard{background:#f8d7da;color:#721c24;}
-/* ── SELECTED TABLE ── */
 .sel-table{width:100%;border-collapse:collapse;font-size:13px;}
 .sel-table th{background:var(--bg);padding:8px 10px;text-align:left;font-size:12px;color:var(--muted);border-bottom:2px solid var(--border);}
 .sel-table td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top;}
 .sel-table tr:last-child td{border-bottom:none;}
 .sel-empty{text-align:center;padding:24px;color:var(--muted);font-size:13px;}
-/* ── COUNTER BADGE ── */
 .count-badge{background:var(--primary);color:#fff;border-radius:12px;font-size:11px;padding:2px 8px;font-weight:700;}
-/* ── NEW QUIZ BTN ── */
 .new-quiz-btn{width:100%;padding:10px;border:2px dashed var(--primary-light);border-radius:10px;background:transparent;cursor:pointer;color:var(--primary);font-size:14px;font-weight:600;font-family:inherit;margin-bottom:10px;transition:background .2s;}
 .new-quiz-btn:hover{background:#f5f3ff;}
 @media(max-width:700px){.dl-wrap{flex-direction:column;}.quiz-list-panel{width:100%;position:static;}}
-</style></head><body>
-<div class="topbar">KAPILA Management System <a href="index.html" style="color:var(--primary);text-decoration:none;font-size:12px">← Dashboard</a></div>
+</style>
+</head>
+<body>
+<div class="topbar">KAPILA Management System <a href="index.html" style="color:var(--primary);text-decoration:none;font-size:12px">&#8592; Dashboard</a></div>
 <div class="wrap">
   <div class="page-header">
     <div class="page-title">Daily Learning</div>
@@ -125,39 +124,38 @@ label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bot
     </div>
   </div>
   <div class="dl-wrap">
-    <!-- ── LEFT: QUIZ LIST ── -->
     <div class="quiz-list-panel">
       <div class="sec-label">Daily Quizzes</div>
-      <button class="new-quiz-btn" onclick="newQuiz()">＋ Create New Quiz</button>
-      <div id="quiz-list"><div class="loading"><span class="spinner"></span>Loading…</div></div>
+      <button class="new-quiz-btn" onclick="newQuiz()">+ Create New Quiz</button>
+      <div id="quiz-list"><div class="loading"><span class="spinner"></span>Loading...</div></div>
     </div>
-    <!-- ── RIGHT: EDITOR ── -->
     <div class="editor-panel">
       <div id="editor-placeholder" class="card" style="text-align:center;padding:48px 24px;color:var(--muted)">
-        <div style="font-size:40px;margin-bottom:12px">📚</div>
+        <div style="font-size:40px;margin-bottom:12px">&#128218;</div>
         <div style="font-size:15px;font-weight:600">Left mathi quiz select karo ya navo banavo</div>
       </div>
       <div id="editor" style="display:none">
-        <!-- Quiz settings -->
         <div class="card" style="margin-bottom:12px">
           <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
             <div class="sec-label" style="margin:0">Quiz Settings</div>
             <div class="toggle-wrap">
-              <label class="toggle"><input type="checkbox" id="quiz-toggle" onchange="toggleQuiz()"><span class="toggle-slider"></span></label>
+              <label class="toggle">
+                <input type="checkbox" id="quiz-toggle" onchange="toggleQuiz()">
+                <span class="toggle-slider"></span>
+              </label>
               <span class="toggle-label" id="toggle-label" style="color:var(--muted)">OFF</span>
             </div>
           </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap">
             <div class="fg" style="flex:2;min-width:160px"><label>Quiz Name</label><input type="text" id="quiz-name" placeholder="e.g. Daily Math Quiz - 01"></div>
-            <div class="fg" style="flex:1;min-width:100px"><label>Time Limit (min)</label><input type="number" id="quiz-time" placeholder="15" min="1"></div>
+            <div class="fg" style="flex:1;min-width:100px"><label>Time Limit (minutes)</label><input type="number" id="quiz-time" placeholder="15" min="1"></div>
           </div>
           <div id="settings-alert"></div>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn btn-primary" id="save-settings-btn" onclick="saveSettings()">Save Settings</button>
             <button class="btn btn-danger btn-sm" id="delete-quiz-btn" onclick="deleteQuiz()" style="display:none">Delete Quiz</button>
           </div>
         </div>
-        <!-- Question browser -->
         <div class="card" style="margin-bottom:12px">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
             <div class="sec-label" style="margin:0">Browse &amp; Add Questions</div>
@@ -168,23 +166,20 @@ label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bot
             <select id="f-chapter" onchange="onChapterChange()" disabled><option value="">-- Chapter Select --</option></select>
             <select id="f-quiz" onchange="onQuizFilter()" disabled><option value="">-- Quiz (optional) --</option></select>
           </div>
-          <div id="q-browse-wrap">
-            <div class="sel-empty">Subject select karo questions jovamate</div>
-          </div>
+          <div id="q-browse-wrap"><div class="sel-empty">Subject select karo questions jovamate</div></div>
         </div>
-        <!-- Selected questions -->
         <div class="card">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
             <div class="sec-label" style="margin:0">Selected Questions <span class="count-badge" id="sel-count">0</span></div>
             <div style="display:flex;gap:8px;align-items:center">
-              <span style="font-size:12px;color:var(--muted)">Total: <strong id="sel-total">0</strong> selected</span>
+              <span style="font-size:12px;color:var(--muted)">Total: <strong id="sel-total">0</strong> saved</span>
               <button class="btn btn-success btn-sm" id="save-q-btn" onclick="saveQuestions()" disabled>Save Questions</button>
             </div>
           </div>
           <div style="overflow-x:auto">
-            <table class="sel-table" id="sel-table">
+            <table class="sel-table">
               <thead><tr><th>#</th><th>Question</th><th>Chapter</th><th>Difficulty</th><th>Action</th></tr></thead>
-              <tbody id="sel-tbody"><tr><td colspan="5" class="sel-empty">No questions selected</td></tr></tbody>
+              <tbody id="sel-tbody"><tr><td colspan="5" class="sel-empty">No questions selected yet</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -193,337 +188,383 @@ label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bot
   </div>
 </div>
 <script>
-// ── CONFIG ──
+// CONFIG
 const SUPABASE_URL  = 'https://bhmycvrbucmbbrpzeane.supabase.co';
-const SUPABASE_ANON = '';eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJobXljdnJidWNtYmJycHplYW5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2OTQwOTYsImV4cCI6MjA4MDI3MDA5Nn0.qQ3bw9cADG0P8hbGwx76Oeg54l-9FbRWxc92nZdSPL4
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJobXljdnJidWNtYmJycHplYW5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2OTQwOTYsImV4cCI6MjA4MDI3MDA5Nn0.qQ3bw9cADG0P8hbGwx76Oeg54l-9FbRWxc92nZdSPL4';
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
-let currentUser = null, currentRole = null;
 
-// ── SHARED UTILS ──
-function esc(s){if(s==null)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-function fmt(ts){if(!ts)return'-';try{return new Date(ts).toLocaleString('en-IN',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}catch(e){return ts;}}
-function showAlert(el,msg,type){if(!el)return;el.innerHTML='<div class="alert alert-'+type+'">'+esc(msg)+'</div>';setTimeout(()=>{if(el)el.innerHTML='';},5000);}
-async function doLogout(){await sb.auth.signOut();window.location.href='index.html';}
-async function initAuth(){
-  const{data:{session}}=await sb.auth.getSession();
-  if(!session){window.location.href='index.html';return false;}
-  currentUser=session.user;
-  const{data}=await sb.from('ngm_admin_roles').select('role,is_active').eq('user_id',currentUser.id).eq('is_active',true).limit(1);
-  if(!data?.length){window.location.href='index.html';return false;}
-  currentRole=data[0].role;
+var currentUser = null;
+var currentRole = null;
+var allQuizzes  = [];
+var curQuiz     = null;
+var selectedQs  = [];
+var savedQIds   = [];
+var allBrowseQs = [];
+
+// UTILS
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmt(ts) {
+  if (!ts) return '-';
+  try { return new Date(ts).toLocaleString('en-IN',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
+  catch(e) { return ts; }
+}
+function showAlert(el, msg, type) {
+  if (!el) return;
+  el.innerHTML = '<div class="alert alert-' + type + '">' + esc(msg) + '</div>';
+  setTimeout(function(){ if(el) el.innerHTML = ''; }, 5000);
+}
+function diffClass(d) {
+  var s = (d||'').toLowerCase();
+  if (s === 'easy') return 'q-easy';
+  if (s === 'hard') return 'q-hard';
+  return 'q-medium';
+}
+
+// AUTH
+async function initAuth() {
+  var res = await sb.auth.getSession();
+  var session = res.data.session;
+  if (!session) { window.location.href = 'index.html'; return false; }
+  currentUser = session.user;
+  var r = await sb.from('ngm_admin_roles').select('role,is_active').eq('user_id', currentUser.id).eq('is_active', true).limit(1);
+  if (!r.data || !r.data.length) { window.location.href = 'index.html'; return false; }
+  currentRole = r.data[0].role;
   return true;
 }
+async function doLogout() {
+  await sb.auth.signOut();
+  window.location.href = 'index.html';
+}
 
-// ── STATE ──
-let allQuizzes=[];       // kls_daily_quiz_settings
-let curQuiz=null;        // currently editing
-let selectedQs=[];       // selected question objects
-let savedQIds=new Set(); // already saved question ids for current quiz
-let allBrowseQs=[];      // questions in browse panel
-let subjects=[];
-let chapters=[];
-
-// ── INIT ──
-(async()=>{
-  if(!await initAuth())return;
-  await Promise.all([loadQuizList(), loadSubjects()]);
-})();
-
-// ════ QUIZ LIST ════
-async function loadQuizList(){
-  const{data,error}=await sb.from('kls_daily_quiz_settings').select('*').order('created_at',{ascending:false});
-  allQuizzes=data||[];
+// QUIZ LIST
+async function loadQuizList() {
+  var res = await sb.from('kls_daily_quiz_settings').select('*').order('created_at', {ascending: false});
+  allQuizzes = res.data || [];
   renderQuizList();
 }
-function renderQuizList(){
-  const el=document.getElementById('quiz-list');
-  if(!allQuizzes.length){el.innerHTML='<div class="empty" style="padding:16px;font-size:13px">No quizzes yet.<br>Create one →</div>';return;}
-  el.innerHTML=allQuizzes.map(q=>`
-    <div class="quiz-card ${curQuiz?.daily_quiz_setting_id===q.daily_quiz_setting_id?'selected':''}" onclick="selectQuiz(${q.daily_quiz_setting_id})">
-      <div class="quiz-card-head">
-        <h4>${esc(q.quiz_name)}</h4>
-        <div class="toggle-wrap" onclick="event.stopPropagation()">
-          <label class="toggle"><input type="checkbox" ${q.is_enabled?'checked':''} onchange="toggleQuizById(${q.daily_quiz_setting_id},this.checked)"><span class="toggle-slider"></span></label>
-        </div>
-      </div>
-      <div class="quiz-meta">
-        ⏱ ${q.time_limit||'-'} min &nbsp;|&nbsp; ❓ ${q.total_questions} questions<br>
-        ${q.is_enabled?'<span style="color:var(--green);font-weight:700">● LIVE</span>':'<span style="color:var(--muted)">● Paused</span>'}
-      </div>
-    </div>
-  `).join('');
+
+function renderQuizList() {
+  var el = document.getElementById('quiz-list');
+  if (!allQuizzes.length) {
+    el.innerHTML = '<div class="empty" style="padding:16px;font-size:13px">No quizzes yet.</div>';
+    return;
+  }
+  var html = '';
+  for (var i = 0; i < allQuizzes.length; i++) {
+    var q = allQuizzes[i];
+    var isSelected = curQuiz && curQuiz.daily_quiz_setting_id === q.daily_quiz_setting_id;
+    var liveHtml = q.is_enabled
+      ? '<span style="color:var(--green);font-weight:700">&#9679; LIVE</span>'
+      : '<span style="color:var(--muted)">&#9679; Paused</span>';
+    html += '<div class="quiz-card ' + (isSelected ? 'selected' : '') + '" onclick="selectQuiz(' + q.daily_quiz_setting_id + ')">';
+    html += '<div class="quiz-card-head">';
+    html += '<h4>' + esc(q.quiz_name) + '</h4>';
+    html += '<div class="toggle-wrap" onclick="event.stopPropagation()">';
+    html += '<label class="toggle"><input type="checkbox" ' + (q.is_enabled ? 'checked' : '') + ' onchange="toggleQuizById(' + q.daily_quiz_setting_id + ',this.checked)"><span class="toggle-slider"></span></label>';
+    html += '</div></div>';
+    html += '<div class="quiz-meta">&#9201; ' + (q.time_limit||'-') + ' min &nbsp;|&nbsp; &#10067; ' + (q.total_questions||0) + ' Q &nbsp;|&nbsp; ' + liveHtml + '</div>';
+    html += '</div>';
+  }
+  el.innerHTML = html;
 }
 
-async function toggleQuizById(id,enabled){
-  await sb.from('kls_daily_quiz_settings').update({is_enabled:enabled,updated_by:currentUser.id}).eq('daily_quiz_setting_id',id);
-  const q=allQuizzes.find(x=>x.daily_quiz_setting_id===id);
-  if(q)q.is_enabled=enabled;
-  if(curQuiz?.daily_quiz_setting_id===id){
-    curQuiz.is_enabled=enabled;
-    document.getElementById('quiz-toggle').checked=enabled;
-    document.getElementById('toggle-label').textContent=enabled?'LIVE':'OFF';
-    document.getElementById('toggle-label').style.color=enabled?'var(--green)':'var(--muted)';
+async function toggleQuizById(id, enabled) {
+  await sb.from('kls_daily_quiz_settings').update({is_enabled: enabled, updated_by: currentUser.id}).eq('daily_quiz_setting_id', id);
+  for (var i = 0; i < allQuizzes.length; i++) {
+    if (allQuizzes[i].daily_quiz_setting_id === id) allQuizzes[i].is_enabled = enabled;
+  }
+  if (curQuiz && curQuiz.daily_quiz_setting_id === id) {
+    curQuiz.is_enabled = enabled;
+    document.getElementById('quiz-toggle').checked = enabled;
+    var lbl = document.getElementById('toggle-label');
+    lbl.textContent = enabled ? 'LIVE' : 'OFF';
+    lbl.style.color = enabled ? 'var(--green)' : 'var(--muted)';
   }
   renderQuizList();
 }
 
-// ════ SELECT / NEW QUIZ ════
-async function selectQuiz(id){
-  curQuiz=allQuizzes.find(x=>x.daily_quiz_setting_id===id);
-  if(!curQuiz)return;
-  selectedQs=[];
-  // load existing questions for this quiz
-  const{data}=await sb.from('kls_daily_quiz_questions')
-    .select('question_id,display_order,kls_questions!kls_daily_quiz_questions_question_id_fkey(id,question,chapter_code,difficulty_level,subject_id)')
-    .eq('quiz_id',curQuiz.quiz_id)
+// SELECT / NEW
+async function selectQuiz(id) {
+  curQuiz = null;
+  for (var i = 0; i < allQuizzes.length; i++) {
+    if (allQuizzes[i].daily_quiz_setting_id === id) { curQuiz = allQuizzes[i]; break; }
+  }
+  if (!curQuiz) return;
+  selectedQs = [];
+  savedQIds = [];
+  var res = await sb.from('kls_daily_quiz_questions')
+    .select('question_id, display_order')
+    .eq('quiz_id', curQuiz.quiz_id)
     .order('display_order');
-  savedQIds=new Set((data||[]).map(d=>d.question_id));
-  selectedQs=(data||[]).map(d=>({
-    id:d.question_id,
-    question:d.kls_questions?.question||'',
-    chapter_code:d.kls_questions?.chapter_code||'',
-    difficulty_level:d.kls_questions?.difficulty_level||'',
-    subject_id:d.kls_questions?.subject_id||''
-  }));
+  var rows = res.data || [];
+  for (var i = 0; i < rows.length; i++) savedQIds.push(rows[i].question_id);
   openEditor();
   renderQuizList();
 }
 
-function newQuiz(){
-  curQuiz=null;selectedQs=[];savedQIds=new Set();
+function newQuiz() {
+  curQuiz = null; selectedQs = []; savedQIds = [];
   openEditor();
   renderQuizList();
 }
 
-function openEditor(){
-  document.getElementById('editor-placeholder').style.display='none';
-  document.getElementById('editor').style.display='block';
-  // Fill settings
-  document.getElementById('quiz-name').value=curQuiz?.quiz_name||'';
-  document.getElementById('quiz-time').value=curQuiz?.time_limit||15;
-  const enabled=curQuiz?.is_enabled||false;
-  document.getElementById('quiz-toggle').checked=enabled;
-  document.getElementById('toggle-label').textContent=enabled?'LIVE':'OFF';
-  document.getElementById('toggle-label').style.color=enabled?'var(--green)':'var(--muted)';
-  document.getElementById('delete-quiz-btn').style.display=curQuiz?'':'none';
+function openEditor() {
+  document.getElementById('editor-placeholder').style.display = 'none';
+  document.getElementById('editor').style.display = 'block';
+  document.getElementById('quiz-name').value = curQuiz ? curQuiz.quiz_name : '';
+  document.getElementById('quiz-time').value = curQuiz ? (curQuiz.time_limit || 15) : 15;
+  var enabled = curQuiz ? !!curQuiz.is_enabled : false;
+  document.getElementById('quiz-toggle').checked = enabled;
+  var lbl = document.getElementById('toggle-label');
+  lbl.textContent = enabled ? 'LIVE' : 'OFF';
+  lbl.style.color = enabled ? 'var(--green)' : 'var(--muted)';
+  document.getElementById('delete-quiz-btn').style.display = curQuiz ? '' : 'none';
   renderSelectedTable();
-  // refresh browse if filters set
-  const chapter=document.getElementById('f-chapter').value;
-  if(chapter)loadBrowseQuestions();
 }
 
-// ════ TOGGLE (editor) ════
-async function toggleQuiz(){
-  if(!curQuiz){alert('Pahela quiz save karo');document.getElementById('quiz-toggle').checked=false;return;}
-  const enabled=document.getElementById('quiz-toggle').checked;
-  await toggleQuizById(curQuiz.daily_quiz_setting_id,enabled);
+// TOGGLE (editor)
+async function toggleQuiz() {
+  if (!curQuiz) {
+    alert('Pahela quiz settings save karo');
+    document.getElementById('quiz-toggle').checked = false;
+    return;
+  }
+  var enabled = document.getElementById('quiz-toggle').checked;
+  await toggleQuizById(curQuiz.daily_quiz_setting_id, enabled);
 }
 
-// ════ SAVE SETTINGS ════
-async function saveSettings(){
-  const name=document.getElementById('quiz-name').value.trim();
-  const time=parseInt(document.getElementById('quiz-time').value)||15;
-  const alertEl=document.getElementById('settings-alert');
-  if(!name){showAlert(alertEl,'Quiz name required','error');return;}
-  const btn=document.getElementById('save-settings-btn');
-  btn.disabled=true;btn.textContent='Saving…';
+// SAVE SETTINGS
+async function saveSettings() {
+  var name = document.getElementById('quiz-name').value.trim();
+  var time = parseInt(document.getElementById('quiz-time').value) || 15;
+  var alertEl = document.getElementById('settings-alert');
+  if (!name) { showAlert(alertEl, 'Quiz name required', 'error'); return; }
+  var btn = document.getElementById('save-settings-btn');
+  btn.disabled = true; btn.textContent = 'Saving...';
 
-  if(curQuiz){
-    // UPDATE
-    const{error}=await sb.from('kls_daily_quiz_settings').update({
-      quiz_name:name,time_limit:time,updated_by:currentUser.id
-    }).eq('daily_quiz_setting_id',curQuiz.daily_quiz_setting_id);
-    btn.disabled=false;btn.textContent='Save Settings';
-    if(error){showAlert(alertEl,error.message,'error');return;}
-    curQuiz.quiz_name=name;curQuiz.time_limit=time;
-    showAlert(alertEl,'Saved!','success');
+  if (curQuiz) {
+    var res = await sb.from('kls_daily_quiz_settings').update({
+      quiz_name: name, time_limit: time, updated_by: currentUser.id
+    }).eq('daily_quiz_setting_id', curQuiz.daily_quiz_setting_id);
+    btn.disabled = false; btn.textContent = 'Save Settings';
+    if (res.error) { showAlert(alertEl, res.error.message, 'error'); return; }
+    curQuiz.quiz_name = name; curQuiz.time_limit = time;
+    showAlert(alertEl, 'Saved!', 'success');
   } else {
-    // CREATE
-    const quizId='DLQ_'+Date.now();
-    const{data,error}=await sb.from('kls_daily_quiz_settings').insert({
-      quiz_id:quizId,quiz_name:name,time_limit:time,
-      total_questions:0,is_enabled:false,created_by:currentUser.id,updated_by:currentUser.id
+    var quizId = 'DLQ_' + Date.now();
+    var res = await sb.from('kls_daily_quiz_settings').insert({
+      quiz_id: quizId, quiz_name: name, time_limit: time,
+      total_questions: 0, is_enabled: false,
+      created_by: currentUser.id, updated_by: currentUser.id
     }).select().single();
-    btn.disabled=false;btn.textContent='Save Settings';
-    if(error){showAlert(alertEl,error.message,'error');return;}
-    curQuiz=data;
-    document.getElementById('delete-quiz-btn').style.display='';
-    showAlert(alertEl,'Quiz created! Hav questions add karo.','success');
+    btn.disabled = false; btn.textContent = 'Save Settings';
+    if (res.error) { showAlert(alertEl, res.error.message, 'error'); return; }
+    curQuiz = res.data;
+    document.getElementById('delete-quiz-btn').style.display = '';
+    showAlert(alertEl, 'Quiz created! Hav questions add karo.', 'success');
   }
   await loadQuizList();
   renderQuizList();
 }
 
-// ════ DELETE QUIZ ════
-async function deleteQuiz(){
-  if(!curQuiz)return;
-  if(!confirm('Delete "'+curQuiz.quiz_name+'"? All questions will also be removed.'))return;
-  await sb.from('kls_daily_quiz_questions').delete().eq('quiz_id',curQuiz.quiz_id);
-  await sb.from('kls_daily_quiz_settings').delete().eq('daily_quiz_setting_id',curQuiz.daily_quiz_setting_id);
-  curQuiz=null;selectedQs=[];savedQIds=new Set();
-  document.getElementById('editor').style.display='none';
-  document.getElementById('editor-placeholder').style.display='block';
+// DELETE QUIZ
+async function deleteQuiz() {
+  if (!curQuiz) return;
+  if (!confirm('Delete "' + curQuiz.quiz_name + '"? All questions will also be removed.')) return;
+  await sb.from('kls_daily_quiz_questions').delete().eq('quiz_id', curQuiz.quiz_id);
+  await sb.from('kls_daily_quiz_settings').delete().eq('daily_quiz_setting_id', curQuiz.daily_quiz_setting_id);
+  curQuiz = null; selectedQs = []; savedQIds = [];
+  document.getElementById('editor').style.display = 'none';
+  document.getElementById('editor-placeholder').style.display = 'block';
   await loadQuizList();
 }
 
-// ════ SUBJECTS / CHAPTERS ════
-async function loadSubjects(){
-  const{data}=await sb.from('kls_subjects').select('id,name,subject_code').order('name');
-  subjects=data||[];
-  const sel=document.getElementById('f-subject');
-  sel.innerHTML='<option value="">-- Subject Select --</option>'+
-    subjects.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
+// SUBJECTS
+async function loadSubjects() {
+  var res = await sb.from('kls_subjects').select('id,name,subject_code').order('name');
+  var subjects = res.data || [];
+  var sel = document.getElementById('f-subject');
+  var opts = '<option value="">-- Subject Select --</option>';
+  for (var i = 0; i < subjects.length; i++) {
+    opts += '<option value="' + subjects[i].id + '">' + esc(subjects[i].name) + '</option>';
+  }
+  sel.innerHTML = opts;
 }
 
-async function onSubjectChange(){
-  const sid=document.getElementById('f-subject').value;
-  const chapSel=document.getElementById('f-chapter');
-  const quizSel=document.getElementById('f-quiz');
-  chapSel.innerHTML='<option value="">-- Chapter Select --</option>';
-  chapSel.disabled=!sid;
-  quizSel.innerHTML='<option value="">-- Quiz (optional) --</option>';
-  quizSel.disabled=true;
-  document.getElementById('q-browse-wrap').innerHTML='<div class="sel-empty">Chapter select karo</div>';
-  if(!sid)return;
-  const{data}=await sb.from('kls_chapters').select('id,name,chapter_code').eq('subject_id',sid).order('name');
-  chapters=data||[];
-  chapSel.innerHTML='<option value="">-- Chapter Select --</option>'+
-    chapters.map(c=>`<option value="${c.chapter_code}">${esc(c.name)} (${c.chapter_code})</option>`).join('');
-  chapSel.disabled=false;
+async function onSubjectChange() {
+  var sid = document.getElementById('f-subject').value;
+  var chapSel = document.getElementById('f-chapter');
+  var quizSel = document.getElementById('f-quiz');
+  chapSel.innerHTML = '<option value="">-- Chapter Select --</option>';
+  chapSel.disabled = !sid;
+  quizSel.innerHTML = '<option value="">-- Quiz (optional) --</option>';
+  quizSel.disabled = true;
+  document.getElementById('q-browse-wrap').innerHTML = '<div class="sel-empty">Chapter select karo</div>';
+  document.getElementById('browse-count').textContent = '0 questions';
+  if (!sid) return;
+  var res = await sb.from('kls_chapters').select('id,name,chapter_code').eq('subject_id', sid).order('name');
+  var chapters = res.data || [];
+  var opts = '<option value="">-- Chapter Select --</option>';
+  for (var i = 0; i < chapters.length; i++) {
+    opts += '<option value="' + esc(chapters[i].chapter_code) + '">' + esc(chapters[i].name) + ' (' + esc(chapters[i].chapter_code) + ')</option>';
+  }
+  chapSel.innerHTML = opts;
+  chapSel.disabled = false;
 }
 
-async function onChapterChange(){
-  const cc=document.getElementById('f-chapter').value;
-  const quizSel=document.getElementById('f-quiz');
-  quizSel.innerHTML='<option value="">-- Quiz (optional) --</option>';
-  quizSel.disabled=!cc;
-  if(!cc){document.getElementById('q-browse-wrap').innerHTML='<div class="sel-empty">Chapter select karo</div>';return;}
-  // Load kls_quizzes for this chapter
-  const{data}=await sb.from('kls_quizzes').select('quiz_id,quiz_name,total_questions').eq('chapter_code',cc).order('quiz_name');
-  if(data?.length){
-    quizSel.innerHTML='<option value="">-- All Chapter Questions --</option>'+
-      data.map(q=>`<option value="${esc(q.quiz_id)}">${esc(q.quiz_name)} (${q.total_questions}Q)</option>`).join('');
-    quizSel.disabled=false;
+async function onChapterChange() {
+  var cc = document.getElementById('f-chapter').value;
+  var quizSel = document.getElementById('f-quiz');
+  quizSel.innerHTML = '<option value="">-- Quiz (optional) --</option>';
+  quizSel.disabled = true;
+  if (!cc) { document.getElementById('q-browse-wrap').innerHTML = '<div class="sel-empty">Chapter select karo</div>'; return; }
+  var res = await sb.from('kls_quizzes').select('quiz_id,quiz_name,total_questions').eq('chapter_code', cc).order('quiz_name');
+  if (res.data && res.data.length) {
+    var opts = '<option value="">-- All Chapter Questions --</option>';
+    for (var i = 0; i < res.data.length; i++) {
+      var q = res.data[i];
+      opts += '<option value="' + esc(q.quiz_id) + '">' + esc(q.quiz_name) + ' (' + (q.total_questions||0) + 'Q)</option>';
+    }
+    quizSel.innerHTML = opts;
+    quizSel.disabled = false;
   }
   await loadBrowseQuestions();
 }
 
-async function onQuizFilter(){
+async function onQuizFilter() {
   await loadBrowseQuestions();
 }
 
-async function loadBrowseQuestions(){
-  const cc=document.getElementById('f-chapter').value;
-  const qid=document.getElementById('f-quiz').value;
-  const wrap=document.getElementById('q-browse-wrap');
-  if(!cc){wrap.innerHTML='<div class="sel-empty">Chapter select karo</div>';return;}
-  wrap.innerHTML='<div class="loading"><span class="spinner"></span>Loading questions…</div>';
-  let query=sb.from('kls_questions').select('id,question,chapter_code,difficulty_level,subject_id,quiz_id').eq('chapter_code',cc);
-  if(qid)query=query.eq('quiz_id',qid);
-  const{data,error}=await query.order('created_at',{ascending:false}).limit(200);
-  allBrowseQs=data||[];
-  document.getElementById('browse-count').textContent=allBrowseQs.length+' questions';
-  if(!allBrowseQs.length){wrap.innerHTML='<div class="sel-empty">No questions found</div>';return;}
+async function loadBrowseQuestions() {
+  var cc = document.getElementById('f-chapter').value;
+  var qid = document.getElementById('f-quiz').value;
+  var wrap = document.getElementById('q-browse-wrap');
+  if (!cc) { wrap.innerHTML = '<div class="sel-empty">Chapter select karo</div>'; return; }
+  wrap.innerHTML = '<div class="loading"><span class="spinner"></span>Loading questions...</div>';
+  var query = sb.from('kls_questions').select('id,question,chapter_code,difficulty_level,subject_id,quiz_id').eq('chapter_code', cc);
+  if (qid) query = query.eq('quiz_id', qid);
+  var res = await query.order('created_at', {ascending: false}).limit(200);
+  allBrowseQs = res.data || [];
+  document.getElementById('browse-count').textContent = allBrowseQs.length + ' questions';
+  if (!allBrowseQs.length) { wrap.innerHTML = '<div class="sel-empty">No questions found</div>'; return; }
   renderBrowse();
 }
 
-function renderBrowse(){
-  const selIds=new Set(selectedQs.map(q=>q.id));
-  const wrap=document.getElementById('q-browse-wrap');
-  wrap.innerHTML=`<div class="q-browse">`+
-    allBrowseQs.map(q=>{
-      const already=selIds.has(q.id)||savedQIds.has(q.id);
-      const diff=q.difficulty_level?.toLowerCase()||'';
-      const cls=diff==='easy'?'q-easy':diff==='hard'?'q-hard':'q-medium';
-      return `<div class="q-item ${already?'already':''}" onclick="addQuestion('${q.id}')">
-        <div class="q-text">${esc(q.question?.substring(0,120))}${q.question?.length>120?'…':''}</div>
-        <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
-          <span class="q-badge ${cls}">${esc(q.difficulty_level||'?')}</span>
-          ${already?'<span style="font-size:10px;color:var(--muted)">Added</span>':'<span class="btn btn-primary btn-sm" style="padding:3px 8px;font-size:11px">+ Add</span>'}
-        </div>
-      </div>`;
-    }).join('')+`</div>`;
+function renderBrowse() {
+  var selIds = {};
+  for (var i = 0; i < selectedQs.length; i++) selIds[selectedQs[i].id] = true;
+  var savedSet = {};
+  for (var i = 0; i < savedQIds.length; i++) savedSet[savedQIds[i]] = true;
+  var html = '<div class="q-browse">';
+  for (var i = 0; i < allBrowseQs.length; i++) {
+    var q = allBrowseQs[i];
+    var already = selIds[q.id] || savedSet[q.id];
+    var cls = diffClass(q.difficulty_level);
+    var txt = (q.question || '').substring(0, 120) + (q.question && q.question.length > 120 ? '...' : '');
+    html += '<div class="q-item ' + (already ? 'already' : '') + '" onclick="addQuestion('' + q.id + '')">';
+    html += '<div class="q-text">' + esc(txt) + '</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">';
+    html += '<span class="q-badge ' + cls + '">' + esc(q.difficulty_level || '?') + '</span>';
+    if (already) {
+      html += '<span style="font-size:10px;color:var(--muted)">Added</span>';
+    } else {
+      html += '<span class="btn btn-primary btn-sm" style="padding:3px 8px;font-size:11px">+ Add</span>';
+    }
+    html += '</div></div>';
+  }
+  html += '</div>';
+  document.getElementById('q-browse-wrap').innerHTML = html;
 }
 
-function addQuestion(qid){
-  if(selectedQs.find(q=>q.id===qid)||savedQIds.has(qid))return;
-  const q=allBrowseQs.find(x=>x.id===qid);
-  if(!q)return;
+function addQuestion(qid) {
+  for (var i = 0; i < selectedQs.length; i++) { if (selectedQs[i].id === qid) return; }
+  for (var i = 0; i < savedQIds.length; i++) { if (savedQIds[i] === qid) return; }
+  var q = null;
+  for (var i = 0; i < allBrowseQs.length; i++) { if (allBrowseQs[i].id === qid) { q = allBrowseQs[i]; break; } }
+  if (!q) return;
   selectedQs.push(q);
   renderSelectedTable();
   renderBrowse();
 }
 
-function removeQuestion(qid){
-  selectedQs=selectedQs.filter(q=>q.id!==qid);
+function removeQuestion(qid) {
+  selectedQs = selectedQs.filter(function(q){ return q.id !== qid; });
   renderSelectedTable();
   renderBrowse();
 }
 
-function renderSelectedTable(){
-  const tbody=document.getElementById('sel-tbody');
-  const total=savedQIds.size+selectedQs.length;
-  document.getElementById('sel-count').textContent=selectedQs.length+' new';
-  document.getElementById('sel-total').textContent=total;
-  document.getElementById('save-q-btn').disabled=selectedQs.length===0||!curQuiz;
-
-  // Show saved + new combined
-  let rows='';
-  let idx=1;
-  // first show saved (can't remove individually without reload - show greyed)
-  if(savedQIds.size>0){
-    rows+=`<tr><td colspan="5" style="font-size:11px;color:var(--muted);padding:6px 10px;background:var(--bg)">✅ Already saved: ${savedQIds.size} questions</td></tr>`;
-    idx+=savedQIds.size;
+function renderSelectedTable() {
+  var total = savedQIds.length + selectedQs.length;
+  document.getElementById('sel-count').textContent = selectedQs.length + ' new';
+  document.getElementById('sel-total').textContent = total;
+  var saveBtn = document.getElementById('save-q-btn');
+  saveBtn.disabled = selectedQs.length === 0 || !curQuiz;
+  var html = '';
+  var idx = 1;
+  if (savedQIds.length > 0) {
+    html += '<tr><td colspan="5" style="font-size:11px;color:var(--muted);padding:6px 10px;background:var(--bg)">Already saved: ' + savedQIds.length + ' questions</td></tr>';
+    idx += savedQIds.length;
   }
-  // new selected
-  if(!selectedQs.length&&!savedQIds.size){
-    rows='<tr><td colspan="5" class="sel-empty">No questions selected</td></tr>';
-  } else if(selectedQs.length){
-    rows+=selectedQs.map((q,i)=>`<tr>
-      <td style="color:var(--muted)">${idx+i}</td>
-      <td>${esc(q.question?.substring(0,100))}${q.question?.length>100?'…':''}</td>
-      <td><code style="font-size:11px">${esc(q.chapter_code||'-')}</code></td>
-      <td><span class="q-badge ${q.difficulty_level?.toLowerCase()==='easy'?'q-easy':q.difficulty_level?.toLowerCase()==='hard'?'q-hard':'q-medium'}">${esc(q.difficulty_level||'?')}</span></td>
-      <td><button class="btn btn-danger btn-sm" onclick="removeQuestion('${q.id}')">Remove</button></td>
-    </tr>`).join('');
+  if (selectedQs.length === 0 && savedQIds.length === 0) {
+    html = '<tr><td colspan="5" class="sel-empty">No questions selected yet</td></tr>';
+  } else {
+    for (var i = 0; i < selectedQs.length; i++) {
+      var q = selectedQs[i];
+      var cls = diffClass(q.difficulty_level);
+      var txt = (q.question || '').substring(0, 100) + (q.question && q.question.length > 100 ? '...' : '');
+      html += '<tr>';
+      html += '<td style="color:var(--muted)">' + (idx + i) + '</td>';
+      html += '<td>' + esc(txt) + '</td>';
+      html += '<td><code style="font-size:11px">' + esc(q.chapter_code || '-') + '</code></td>';
+      html += '<td><span class="q-badge ' + cls + '">' + esc(q.difficulty_level || '?') + '</span></td>';
+      html += '<td><button class="btn btn-danger btn-sm" onclick="removeQuestion('' + q.id + '')">Remove</button></td>';
+      html += '</tr>';
+    }
   }
-  tbody.innerHTML=rows;
+  document.getElementById('sel-tbody').innerHTML = html;
 }
 
-// ════ SAVE QUESTIONS ════
-async function saveQuestions(){
-  if(!curQuiz){alert('Pahela quiz settings save karo');return;}
-  if(!selectedQs.length)return;
-  const btn=document.getElementById('save-q-btn');
-  btn.disabled=true;btn.textContent='Saving…';
+// SAVE QUESTIONS
+async function saveQuestions() {
+  if (!curQuiz) { alert('Pahela quiz settings save karo'); return; }
+  if (!selectedQs.length) return;
+  var btn = document.getElementById('save-q-btn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  var alertEl = document.getElementById('settings-alert');
 
-  // Get current max display_order
-  const{data:existing}=await sb.from('kls_daily_quiz_questions')
-    .select('display_order').eq('quiz_id',curQuiz.quiz_id)
-    .order('display_order',{ascending:false}).limit(1);
-  let startOrder=(existing?.[0]?.display_order||0)+1;
+  var res = await sb.from('kls_daily_quiz_questions')
+    .select('display_order').eq('quiz_id', curQuiz.quiz_id)
+    .order('display_order', {ascending: false}).limit(1);
+  var startOrder = (res.data && res.data.length ? res.data[0].display_order : 0) + 1;
 
-  const rows=selectedQs.map((q,i)=>({
-    quiz_id:curQuiz.quiz_id,
-    question_id:q.id,
-    display_order:startOrder+i
-  }));
-  const{error}=await sb.from('kls_daily_quiz_questions').insert(rows);
-  btn.disabled=false;btn.textContent='Save Questions';
-  if(error){showAlert(document.getElementById('settings-alert'),error.message,'error');return;}
+  var rows = [];
+  for (var i = 0; i < selectedQs.length; i++) {
+    rows.push({ quiz_id: curQuiz.quiz_id, question_id: selectedQs[i].id, display_order: startOrder + i });
+  }
+  var ins = await sb.from('kls_daily_quiz_questions').insert(rows);
+  btn.disabled = false; btn.textContent = 'Save Questions';
+  if (ins.error) { showAlert(alertEl, ins.error.message, 'error'); return; }
 
-  // Update total_questions count
-  const newTotal=savedQIds.size+selectedQs.length;
-  await sb.from('kls_daily_quiz_settings').update({total_questions:newTotal,updated_by:currentUser.id}).eq('daily_quiz_setting_id',curQuiz.daily_quiz_setting_id);
-  curQuiz.total_questions=newTotal;
-
-  // Move selected to saved
-  selectedQs.forEach(q=>savedQIds.add(q.id));
-  selectedQs=[];
+  var newTotal = savedQIds.length + selectedQs.length;
+  await sb.from('kls_daily_quiz_settings').update({ total_questions: newTotal, updated_by: currentUser.id }).eq('daily_quiz_setting_id', curQuiz.daily_quiz_setting_id);
+  curQuiz.total_questions = newTotal;
+  for (var i = 0; i < selectedQs.length; i++) savedQIds.push(selectedQs[i].id);
+  selectedQs = [];
   renderSelectedTable();
   renderBrowse();
   await loadQuizList();
-  showAlert(document.getElementById('settings-alert'),'Questions saved successfully!','success');
+  showAlert(alertEl, 'Questions saved successfully!', 'success');
 }
-</script></body></html>
+
+// BOOT
+(async function(){
+  if (!await initAuth()) return;
+  await Promise.all([loadQuizList(), loadSubjects()]);
+})();
+</script>
+</body>
+</html>
