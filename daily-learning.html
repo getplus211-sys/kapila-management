@@ -465,7 +465,7 @@ function renderBrowse() {
     var already = selIds[q.id] || savedSet[q.id];
     var cls = diffClass(q.difficulty_level);
     var txt = (q.question || '').substring(0, 120) + (q.question && q.question.length > 120 ? '...' : '');
-    html += '<div class="q-item ' + (already ? 'already' : '') + '" onclick="addQuestion('' + q.id + '')">';
+    html += '<div class="q-item ' + (already ? 'already' : '') + '" onclick="addQuestion(\'' + q.id + '\')">';
     html += '<div class="q-text">' + esc(txt) + '</div>';
     html += '<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">';
     html += '<span class="q-badge ' + cls + '">' + esc(q.difficulty_level || '?') + '</span>';
@@ -521,7 +521,7 @@ function renderSelectedTable() {
       html += '<td>' + esc(txt) + '</td>';
       html += '<td><code style="font-size:11px">' + esc(q.chapter_code || '-') + '</code></td>';
       html += '<td><span class="q-badge ' + cls + '">' + esc(q.difficulty_level || '?') + '</span></td>';
-      html += '<td><button class="btn btn-danger btn-sm" onclick="removeQuestion('' + q.id + '')">Remove</button></td>';
+      html += '<td><button class="btn btn-danger btn-sm" onclick="removeQuestion(\'' + q.id + '\')">Remove</button></td>';
       html += '</tr>';
     }
   }
