@@ -1,68 +1,292 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="gu">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Suggestions</title>
-  <link rel="stylesheet" href="styles.css?v=4">
-  <script src="config.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Question Suggestions - KAPILA</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--primary:#6c5ce7;--primary-light:#a29bfe;--bg:#f0efff;--card:#fff;--text:#2d3436;--muted:#636e72;--border:#e0dff7;--green:#00b894;--red:#d63031;--orange:#e17055;--radius:10px;--shadow:0 2px 12px rgba(108,92,231,.1);}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+.topbar{background:var(--card);border-bottom:1px solid var(--border);padding:10px 16px;font-size:12px;color:var(--muted);font-weight:600;display:flex;align-items:center;justify-content:space-between;}
+.wrap{padding:16px;max-width:900px;margin:0 auto;}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;}
+.page-title{font-size:22px;font-weight:700;}
+.page-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.card{background:var(--card);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);margin-bottom:12px;}
+input,select,textarea{width:100%;border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:14px;outline:none;font-family:inherit;background:#fafafa;}
+input:focus,select:focus,textarea:focus{border-color:var(--primary-light);background:#fff;}
+textarea{resize:vertical;min-height:80px;}
+label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px;}
+.fg{margin-bottom:14px;}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;transition:opacity .2s,transform .1s;}
+.btn:active{transform:scale(.97);}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-success{background:var(--green);color:#fff;}
+.btn-danger{background:var(--red);color:#fff;}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-outline{background:transparent;color:var(--primary);border:1.5px solid var(--primary);}
+.btn-sm{padding:5px 10px;font-size:12px;}
+.btn-block{width:100%;justify-content:center;padding:12px;}
+.q-easy{background:#d4edda;color:#155724;}
+.q-medium{background:#fff3cd;color:#856404;}
+.q-hard{background:#f8d7da;color:#721c24;}
+.q-badge{font-size:11px;padding:3px 9px;border-radius:10px;white-space:nowrap;font-weight:700;display:inline-block;}
+.chip{font-size:11px;padding:3px 9px;border-radius:10px;background:var(--bg);color:var(--primary);font-weight:700;display:inline-block;}
+.alert{padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:12px;}
+.alert-error{background:#f8d7da;color:#721c24;}
+.alert-success{background:#d4edda;color:#155724;}
+.alert-info{background:#d1ecf1;color:#0c5460;}
+.loading,.empty{text-align:center;padding:30px;color:var(--muted);font-size:14px;}
+.spinner{display:inline-block;width:22px;height:22px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:6px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal-box{background:var(--card);border-radius:var(--radius);padding:24px;max-width:560px;width:95%;max-height:90vh;overflow-y:auto;}
+.modal-box h3{margin-bottom:16px;}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap;}
+.opt-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+@media(max-width:500px){.opt-grid{grid-template-columns:1fr;}}
+.sugg-box{background:#fff8e6;border:1px solid #ffe69c;border-radius:8px;padding:10px 12px;font-size:13px;color:#7a5c00;margin-top:10px;}
+.q-card{margin-bottom:12px;}
+.q-card .qtext{font-size:15px;font-weight:600;margin:6px 0 8px;line-height:1.5;}
+.q-card .opts{font-size:13px;color:var(--muted);line-height:1.9;}
+.q-card .opts b{color:var(--green);}
+.count-badge{background:var(--primary);color:#fff;border-radius:12px;font-size:11px;padding:2px 8px;font-weight:700;}
+</style>
 </head>
-<body data-module="suggestions" data-title="Suggestions">
-  <main class="module-shell">
-    <header class="module-topbar">
-      <div>
-        <p class="eyebrow">Module</p>
-        <h2 id="roleTitle">Login to continue</h2>
-        <p class="muted" id="userEmail">Authenticated user</p>
-      </div>
-      <div class="module-topbar-actions">
-        <a href="index.html" class="secondary-btn">Back</a>
-        <span class="pill pill-success" id="connectionPill">Disconnected</span>
-        <button class="secondary-btn" id="signOutBtn" type="button">Logout</button>
-      </div>
-    </header>
+<body>
+<div class="topbar">KAPILA Management System <a href="index.html" style="color:var(--primary);text-decoration:none;font-size:12px">&#8592; Dashboard</a></div>
+<div class="wrap">
+  <div class="page-header">
+    <div class="page-title">Question Suggestions <span class="count-badge" id="count-badge">0</span></div>
+    <div class="page-actions">
+      <button class="btn btn-ghost btn-sm" onclick="loadSuggestions()">&#8635; Refresh</button>
+      <button class="btn btn-ghost btn-sm" onclick="doLogout()">Logout</button>
+      <a href="index.html" class="btn btn-ghost btn-sm">Back</a>
+    </div>
+  </div>
+  <div id="top-alert"></div>
+  <div id="list-wrap"><div class="loading"><span class="spinner"></span>Loading...</div></div>
+</div>
 
-    <section class="auth-card" id="loginCard">
-      <div class="brand">
-        <div class="brand-mark">K</div>
-        <div>
-          <h1>KAPiLA Management System</h1>
-          <p>Admin Management Panel</p>
-        </div>
+<!-- Edit Modal -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal-box">
+    <h3>Edit Question</h3>
+    <div id="edit-alert"></div>
+    <div class="fg"><label>Question</label><textarea id="ef-question"></textarea></div>
+    <div class="opt-grid">
+      <div class="fg"><label>Option A</label><input id="ef-a"></div>
+      <div class="fg"><label>Option B</label><input id="ef-b"></div>
+      <div class="fg"><label>Option C</label><input id="ef-c"></div>
+      <div class="fg"><label>Option D</label><input id="ef-d"></div>
+    </div>
+    <div class="fg"><label>Option E (optional)</label><input id="ef-e"></div>
+    <div class="opt-grid">
+      <div class="fg">
+        <label>Correct Answer</label>
+        <select id="ef-correct">
+          <option value="A">A</option><option value="B">B</option>
+          <option value="C">C</option><option value="D">D</option>
+          <option value="E">E</option>
+        </select>
       </div>
-      <h2>Login</h2>
-      <div class="login-grid">
-        <input id="emailInput" class="kap-input" type="email" placeholder="Email" autocomplete="email" />
-        <input id="passwordInput" class="kap-input" type="password" placeholder="Password" autocomplete="current-password" />
-        <button id="loginBtn" class="kap-btn kap-btn-primary" type="button">Login</button>
+      <div class="fg">
+        <label>Difficulty</label>
+        <select id="ef-difficulty">
+          <option value="સરળ">સરળ (Easy)</option>
+          <option value="મધ્યમ">મધ્યમ (Medium)</option>
+          <option value="મુશ્કેલ">મુશ્કેલ (Hard)</option>
+        </select>
       </div>
-      <p class="kap-msg" id="authNote">Waiting for Supabase connection.</p>
-    </section>
+    </div>
+    <div class="fg"><label>Solution</label><textarea id="ef-solution"></textarea></div>
+    <div class="fg"><label>Suggestion (received)</label><textarea id="ef-suggestion" disabled style="background:#f5f5f5"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" onclick="deleteFromModal()">Delete Question</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="save-edit-btn" onclick="saveEdit()">Save &amp; Resolve</button>
+    </div>
+  </div>
+</div>
 
-    <section class="module-shell hidden" id="moduleShell">
-      <div class="module-content">
-        <div class="panel">
-          <p class="eyebrow">Page</p>
-          <h1 id="moduleTitle" style="margin: 4px 0 8px;">Suggestions</h1>
-          <p class="muted" id="moduleSubtitle">Review suggested question edits.</p>
-          <p class="kap-msg" id="pageMessage"></p>
-        </div>
+<script>
+const SUPABASE_URL  = 'https://bhmycvrbucmbbrpzeane.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJobXljdnJidWNtYmJycHplYW5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2OTQwOTYsImV4cCI6MjA4MDI3MDA5Nn0.qQ3bw9cADG0P8hbGwx76Oeg54l-9FbRWxc92nZdSPL4';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-        <div class="panel">
-          <p style="font-weight: 800; margin-bottom: 8px;">Instructions</p>
-          <p class="muted" style="margin: 0;">
-            This page loads rows from <b>kls_questions</b> where <b>suggestion</b> is not empty.
-            Each card lets you review the suggestion and save the full edited question.
-          </p>
-        </div>
-      </div>
+var currentUser = null;
+var subjectMap = {};
+var chapterMap = {};
+var suggestions = [];
+var editingId = null;
 
-      <div id="moduleMeta"></div>
-      <div id="moduleContent" class="module-content"></div>
-    </section>
-  </main>
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function showAlert(elId, msg, type) {
+  var el = document.getElementById(elId);
+  if (!el) return;
+  el.innerHTML = '<div class="alert alert-' + type + '">' + esc(msg) + '</div>';
+  setTimeout(function(){ if(el) el.innerHTML = ''; }, 5000);
+}
+function diffClass(d) {
+  if (d === 'સરળ') return 'q-easy';
+  if (d === 'મુશ્કેલ') return 'q-hard';
+  return 'q-medium';
+}
 
-  <script src="module.js?v=4"></script>
+async function initAuth() {
+  var res = await sb.auth.getSession();
+  var session = res.data.session;
+  if (!session) { window.location.href = 'index.html'; return false; }
+  currentUser = session.user;
+  var r = await sb.from('ngm_admin_roles').select('role,is_active').eq('user_id', currentUser.id).eq('is_active', true).limit(1);
+  if (!r.data || !r.data.length) { window.location.href = 'index.html'; return false; }
+  return true;
+}
+async function doLogout() {
+  await sb.auth.signOut();
+  window.location.href = 'index.html';
+}
+
+async function loadLookups() {
+  var subs = await sb.from('kls_subjects').select('id,name');
+  (subs.data || []).forEach(function(s){ subjectMap[s.id] = s.name; });
+  var chaps = await sb.from('kls_chapters').select('id,name,chapter_code,subject_id');
+  (chaps.data || []).forEach(function(c){ chapterMap[c.id] = c; });
+}
+
+async function loadSuggestions() {
+  var wrap = document.getElementById('list-wrap');
+  wrap.innerHTML = '<div class="loading"><span class="spinner"></span>Loading...</div>';
+  var res = await sb.from('kls_questions').select('*').not('suggestion', 'is', null).order('created_at', {ascending: false});
+  var rows = res.data || [];
+  suggestions = rows.filter(function(r){ return r.suggestion && r.suggestion.trim() !== ''; });
+  document.getElementById('count-badge').textContent = suggestions.length;
+  renderList();
+}
+
+function chapterNameFor(q) {
+  var c = chapterMap[q.chapter_id];
+  return c ? c.name : (q.chapter_code || '-');
+}
+function subjectNameFor(q) {
+  return subjectMap[q.subject_id] || '-';
+}
+
+function renderList() {
+  var wrap = document.getElementById('list-wrap');
+  if (!suggestions.length) {
+    wrap.innerHTML = '<div class="empty">&#127881; No pending suggestions. Badhu clear chhe!</div>';
+    return;
+  }
+  var html = '';
+  for (var i = 0; i < suggestions.length; i++) {
+    var q = suggestions[i];
+    var cls = diffClass(q.difficulty_level);
+    html += '<div class="card q-card">';
+    html += '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">';
+    html += '<span class="chip">' + esc(subjectNameFor(q)) + '</span>';
+    html += '<span class="chip">' + esc(chapterNameFor(q)) + '</span>';
+    html += '<span class="q-badge ' + cls + '">' + esc(q.difficulty_level || '?') + '</span>';
+    html += '</div>';
+    html += '<div class="qtext">' + esc(q.question) + '</div>';
+    html += '<div class="opts">';
+    html += 'A) ' + esc(stripPrefix(q.option_a)) + (q.correct_answer === 'A' ? ' <b>&#10003;</b>' : '') + '<br>';
+    html += 'B) ' + esc(stripPrefix(q.option_b)) + (q.correct_answer === 'B' ? ' <b>&#10003;</b>' : '') + '<br>';
+    html += 'C) ' + esc(stripPrefix(q.option_c)) + (q.correct_answer === 'C' ? ' <b>&#10003;</b>' : '') + '<br>';
+    html += 'D) ' + esc(stripPrefix(q.option_d)) + (q.correct_answer === 'D' ? ' <b>&#10003;</b>' : '');
+    html += '</div>';
+    html += '<div class="sugg-box">&#128161; <strong>Suggestion:</strong> ' + esc(q.suggestion) + '</div>';
+    html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">';
+    html += '<button class="btn btn-primary btn-sm" onclick="openEdit(\'' + q.id + '\')">Edit Question</button>';
+    html += '<button class="btn btn-success btn-sm" onclick="resolveOnly(\'' + q.id + '\')">Mark Resolved</button>';
+    html += '</div>';
+    html += '</div>';
+  }
+  wrap.innerHTML = html;
+}
+
+function stripPrefix(s) {
+  if (!s) return '';
+  return s.replace(/^[A-E]\)\s*/, '');
+}
+
+async function resolveOnly(id) {
+  if (!confirm('Suggestion dismiss karvi chhe? (Question ma koi change nahi thay)')) return;
+  var res = await sb.from('kls_questions').update({ suggestion: null }).eq('id', id);
+  if (res.error) { showAlert('top-alert', res.error.message, 'error'); return; }
+  await loadSuggestions();
+  showAlert('top-alert', 'Suggestion resolved.', 'success');
+}
+
+function openEdit(id) {
+  var q = null;
+  for (var i = 0; i < suggestions.length; i++) { if (suggestions[i].id === id) { q = suggestions[i]; break; } }
+  if (!q) return;
+  editingId = id;
+  document.getElementById('ef-question').value = q.question || '';
+  document.getElementById('ef-a').value = q.option_a || '';
+  document.getElementById('ef-b').value = q.option_b || '';
+  document.getElementById('ef-c').value = q.option_c || '';
+  document.getElementById('ef-d').value = q.option_d || '';
+  document.getElementById('ef-e').value = q.option_e || '';
+  document.getElementById('ef-correct').value = q.correct_answer || 'A';
+  document.getElementById('ef-difficulty').value = q.difficulty_level || 'મધ્યમ';
+  document.getElementById('ef-solution').value = q.solution || '';
+  document.getElementById('ef-suggestion').value = q.suggestion || '';
+  document.getElementById('edit-modal').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('edit-modal').classList.remove('open');
+  editingId = null;
+}
+
+async function saveEdit() {
+  if (!editingId) return;
+  var btn = document.getElementById('save-edit-btn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  var payload = {
+    question: document.getElementById('ef-question').value.trim(),
+    option_a: document.getElementById('ef-a').value.trim(),
+    option_b: document.getElementById('ef-b').value.trim(),
+    option_c: document.getElementById('ef-c').value.trim(),
+    option_d: document.getElementById('ef-d').value.trim(),
+    option_e: document.getElementById('ef-e').value.trim() || 'E - Not Attempted',
+    correct_answer: document.getElementById('ef-correct').value,
+    difficulty_level: document.getElementById('ef-difficulty').value,
+    solution: document.getElementById('ef-solution').value.trim(),
+    suggestion: null
+  };
+  var res = await sb.from('kls_questions').update(payload).eq('id', editingId);
+  btn.disabled = false; btn.textContent = 'Save & Resolve';
+  if (res.error) { showAlert('edit-alert', res.error.message, 'error'); return; }
+  closeModal();
+  await loadSuggestions();
+  showAlert('top-alert', 'Question updated ane suggestion resolved!', 'success');
+}
+
+async function deleteFromModal() {
+  if (!editingId) return;
+  if (!confirm('Aa question kayami delete karvu chhe? Aa action undo nahi thay shake.')) return;
+  var res = await sb.from('kls_questions').delete().eq('id', editingId);
+  if (res.error) { showAlert('edit-alert', res.error.message, 'error'); return; }
+  closeModal();
+  await loadSuggestions();
+  showAlert('top-alert', 'Question deleted.', 'success');
+}
+
+(async function(){
+  if (!await initAuth()) return;
+  await loadLookups();
+  await loadSuggestions();
+})();
+</script>
 </body>
 </html>

@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="gu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Question Bank - KAPILA</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--primary:#6c5ce7;--primary-light:#a29bfe;--bg:#f0efff;--card:#fff;--text:#2d3436;--muted:#636e72;--border:#e0dff7;--green:#00b894;--red:#d63031;--orange:#e17055;--radius:10px;--shadow:0 2px 12px rgba(108,92,231,.1);}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+.topbar{background:var(--card);border-bottom:1px solid var(--border);padding:10px 16px;font-size:12px;color:var(--muted);font-weight:600;display:flex;align-items:center;justify-content:space-between;}
+.wrap{padding:16px;max-width:1000px;margin:0 auto;}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;}
+.page-title{font-size:22px;font-weight:700;}
+.page-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.card{background:var(--card);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);margin-bottom:12px;}
+input,select,textarea{width:100%;border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:13px;outline:none;font-family:inherit;background:#fafafa;}
+input:focus,select:focus,textarea:focus{border-color:var(--primary-light);background:#fff;}
+textarea{resize:vertical;min-height:70px;}
+label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px;}
+.fg{margin-bottom:14px;}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;transition:opacity .2s,transform .1s;}
+.btn:active{transform:scale(.97);}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-success{background:var(--green);color:#fff;}
+.btn-danger{background:var(--red);color:#fff;}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-outline{background:transparent;color:var(--primary);border:1.5px solid var(--primary);}
+.btn-sm{padding:5px 10px;font-size:12px;}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+.tab{padding:7px 16px;border-radius:20px;border:none;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;background:var(--card);color:var(--muted);}
+.tab.active{background:var(--primary);color:#fff;}
+.q-easy{background:#d4edda;color:#155724;}
+.q-medium{background:#fff3cd;color:#856404;}
+.q-hard{background:#f8d7da;color:#721c24;}
+.q-badge{font-size:10px;padding:2px 7px;border-radius:8px;white-space:nowrap;font-weight:700;}
+.alert{padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:12px;}
+.alert-error{background:#f8d7da;color:#721c24;}
+.alert-success{background:#d4edda;color:#155724;}
+.alert-info{background:#d1ecf1;color:#0c5460;}
+.loading,.empty{text-align:center;padding:30px;color:var(--muted);font-size:14px;}
+.spinner{display:inline-block;width:22px;height:22px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:6px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.sec-label{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px;}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal-box{background:var(--card);border-radius:var(--radius);padding:24px;max-width:560px;width:95%;max-height:90vh;overflow-y:auto;}
+.modal-box h3{margin-bottom:16px;}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap;}
+.opt-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+@media(max-width:500px){.opt-grid{grid-template-columns:1fr;}}
+.filter-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+.filter-row select{flex:1;min-width:140px;}
+.sel-table{width:100%;border-collapse:collapse;font-size:13px;}
+.sel-table th{background:var(--bg);padding:8px 10px;text-align:left;font-size:12px;color:var(--muted);border-bottom:2px solid var(--border);}
+.sel-table td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.sel-table tr:last-child td{border-bottom:none;}
+.sel-table input{padding:6px 8px;font-size:13px;}
+.sel-empty{text-align:center;padding:24px;color:var(--muted);font-size:13px;}
+.count-badge{background:var(--primary);color:#fff;border-radius:12px;font-size:11px;padding:2px 8px;font-weight:700;}
+.add-row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;padding:12px;background:var(--bg);border-radius:8px;}
+.add-row .fg{flex:1;min-width:140px;margin-bottom:0;}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+.row-actions{display:flex;gap:6px;flex-wrap:wrap;}
+</style>
+</head>
+<body>
+<div class="topbar">KAPILA Management System <a href="index.html" style="color:var(--primary);text-decoration:none;font-size:12px">&#8592; Dashboard</a></div>
+<div class="wrap">
+  <div class="page-header">
+    <div class="page-title">Question Bank</div>
+    <div class="page-actions">
+      <button class="btn btn-ghost btn-sm" onclick="doLogout()">Logout</button>
+      <a href="index.html" class="btn btn-ghost btn-sm">Back</a>
+    </div>
+  </div>
+  <div id="top-alert"></div>
+  <div class="tabs">
+    <button class="tab active" id="tab-btn-subjects" onclick="switchTab('subjects')">Subjects</button>
+    <button class="tab" id="tab-btn-chapters" onclick="switchTab('chapters')">Chapters</button>
+    <button class="tab" id="tab-btn-quizzes" onclick="switchTab('quizzes')">Quizzes</button>
+    <button class="tab" id="tab-btn-questions" onclick="switchTab('questions')">Questions</button>
+  </div>
+
+  <!-- SUBJECTS TAB -->
+  <div class="tab-panel active" id="panel-subjects">
+    <div class="card">
+      <div class="add-row">
+        <div class="fg"><label>New Subject Name</label><input id="new-subject-name" placeholder="e.g. Mathematics"></div>
+        <div class="fg"><label>Subject Code</label><input id="new-subject-code" placeholder="e.g. MATH"></div>
+        <button class="btn btn-primary" onclick="addSubject()">+ Add</button>
+      </div>
+      <table class="sel-table">
+        <thead><tr><th>Name</th><th>Code</th><th style="width:160px">Action</th></tr></thead>
+        <tbody id="subjects-tbody"><tr><td colspan="3" class="sel-empty">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- CHAPTERS TAB -->
+  <div class="tab-panel" id="panel-chapters">
+    <div class="card">
+      <div class="filter-row">
+        <select id="ch-subject-filter" onchange="loadChapters()"><option value="">-- Subject Select --</option></select>
+      </div>
+      <div class="add-row">
+        <div class="fg"><label>New Chapter Name</label><input id="new-chapter-name" placeholder="e.g. Average"></div>
+        <div class="fg"><label>Chapter Code</label><input id="new-chapter-code" placeholder="e.g. MATH_05"></div>
+        <button class="btn btn-primary" onclick="addChapter()">+ Add</button>
+      </div>
+      <table class="sel-table">
+        <thead><tr><th>Name</th><th>Code</th><th style="width:160px">Action</th></tr></thead>
+        <tbody id="chapters-tbody"><tr><td colspan="3" class="sel-empty">Subject select karo</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- QUIZZES TAB -->
+  <div class="tab-panel" id="panel-quizzes">
+    <div class="card">
+      <div class="filter-row">
+        <select id="qz-subject-filter" onchange="onQzSubjectChange()"><option value="">-- Subject Select --</option></select>
+        <select id="qz-chapter-filter" onchange="loadQuizzes()" disabled><option value="">-- Chapter Select --</option></select>
+      </div>
+      <div class="add-row">
+        <div class="fg"><label>New Quiz Name</label><input id="new-quiz-name" placeholder="e.g. Average - Quiz 1"></div>
+        <button class="btn btn-primary" onclick="addQuiz()">+ Add</button>
+      </div>
+      <table class="sel-table">
+        <thead><tr><th>Quiz Name</th><th>Total Q</th><th style="width:160px">Action</th></tr></thead>
+        <tbody id="quizzes-tbody"><tr><td colspan="3" class="sel-empty">Subject &amp; Chapter select karo</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- QUESTIONS TAB -->
+  <div class="tab-panel" id="panel-questions">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+        <div class="filter-row" style="margin-bottom:0;flex:1">
+          <select id="q-subject-filter" onchange="onQSubjectChange()"><option value="">-- Subject Select --</option></select>
+          <select id="q-chapter-filter" onchange="onQChapterChange()" disabled><option value="">-- Chapter Select --</option></select>
+          <select id="q-quiz-filter" onchange="loadQuestions()" disabled><option value="">-- Quiz (optional) --</option></select>
+        </div>
+        <button class="btn btn-primary btn-sm" id="add-q-btn" onclick="openQuestionModal(null)" disabled>+ Add Question</button>
+      </div>
+      <span class="count-badge" id="q-count">0 questions</span>
+      <table class="sel-table" style="margin-top:10px">
+        <thead><tr><th>#</th><th>Question</th><th>Difficulty</th><th>Correct</th><th style="width:140px">Action</th></tr></thead>
+        <tbody id="questions-tbody"><tr><td colspan="5" class="sel-empty">Subject ane Chapter select karo</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Question Add/Edit Modal -->
+<div class="modal-overlay" id="q-modal">
+  <div class="modal-box">
+    <h3 id="q-modal-title">Add Question</h3>
+    <div id="q-modal-alert"></div>
+    <div class="fg"><label>Question</label><textarea id="qf-question"></textarea></div>
+    <div class="opt-grid">
+      <div class="fg"><label>Option A</label><input id="qf-a"></div>
+      <div class="fg"><label>Option B</label><input id="qf-b"></div>
+      <div class="fg"><label>Option C</label><input id="qf-c"></div>
+      <div class="fg"><label>Option D</label><input id="qf-d"></div>
+    </div>
+    <div class="fg"><label>Option E (optional)</label><input id="qf-e"></div>
+    <div class="opt-grid">
+      <div class="fg">
+        <label>Correct Answer</label>
+        <select id="qf-correct">
+          <option value="A">A</option><option value="B">B</option>
+          <option value="C">C</option><option value="D">D</option>
+          <option value="E">E</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Difficulty</label>
+        <select id="qf-difficulty">
+          <option value="સરળ">સરળ (Easy)</option>
+          <option value="મધ્યમ">મધ્યમ (Medium)</option>
+          <option value="મુશ્કેલ">મુશ્કેલ (Hard)</option>
+        </select>
+      </div>
+    </div>
+    <div class="fg"><label>Solution</label><textarea id="qf-solution"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="q-delete-btn" onclick="deleteQuestionFromModal()" style="display:none">Delete</button>
+      <button class="btn btn-ghost" onclick="closeQuestionModal()">Cancel</button>
+      <button class="btn btn-primary" id="q-save-btn" onclick="saveQuestion()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL  = 'https://bhmycvrbucmbbrpzeane.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJobXljdnJidWNtYmJycHplYW5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2OTQwOTYsImV4cCI6MjA4MDI3MDA5Nn0.qQ3bw9cADG0P8hbGwx76Oeg54l-9FbRWxc92nZdSPL4';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+var currentUser = null;
+var allSubjects = [];
+var allChapters = [];
+var allQuestions = [];
+var editingQuestionId = null;
+
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function showAlert(elId, msg, type) {
+  var el = document.getElementById(elId);
+  if (!el) return;
+  el.innerHTML = '<div class="alert alert-' + type + '">' + esc(msg) + '</div>';
+  setTimeout(function(){ if(el) el.innerHTML = ''; }, 5000);
+}
+function diffClass(d) {
+  if (d === 'સરળ') return 'q-easy';
+  if (d === 'મુશ્કેલ') return 'q-hard';
+  return 'q-medium';
+}
+
+async function initAuth() {
+  var res = await sb.auth.getSession();
+  var session = res.data.session;
+  if (!session) { window.location.href = 'index.html'; return false; }
+  currentUser = session.user;
+  var r = await sb.from('ngm_admin_roles').select('role,is_active').eq('user_id', currentUser.id).eq('is_active', true).limit(1);
+  if (!r.data || !r.data.length) { window.location.href = 'index.html'; return false; }
+  return true;
+}
+async function doLogout() {
+  await sb.auth.signOut();
+  window.location.href = 'index.html';
+}
+
+// TABS
+function switchTab(name) {
+  ['subjects','chapters','quizzes','questions'].forEach(function(t){
+    document.getElementById('panel-' + t).classList.toggle('active', t === name);
+    document.getElementById('tab-btn-' + t).classList.toggle('active', t === name);
+  });
+}
+
+// ===== SUBJECTS =====
+async function loadSubjects() {
+  var res = await sb.from('kls_subjects').select('id,name,subject_code').order('name');
+  allSubjects = res.data || [];
+  renderSubjects();
+  fillSubjectDropdowns();
+}
+function renderSubjects() {
+  var tb = document.getElementById('subjects-tbody');
+  if (!allSubjects.length) { tb.innerHTML = '<tr><td colspan="3" class="sel-empty">No subjects yet</td></tr>'; return; }
+  var html = '';
+  for (var i = 0; i < allSubjects.length; i++) {
+    var s = allSubjects[i];
+    html += '<tr>';
+    html += '<td><input id="subj-name-' + s.id + '" value="' + esc(s.name) + '"></td>';
+    html += '<td><input id="subj-code-' + s.id + '" value="' + esc(s.subject_code || '') + '"></td>';
+    html += '<td class="row-actions"><button class="btn btn-success btn-sm" onclick="saveSubject(\'' + s.id + '\')">Save</button>' +
+            '<button class="btn btn-danger btn-sm" onclick="deleteSubject(\'' + s.id + '\')">Delete</button></td>';
+    html += '</tr>';
+  }
+  tb.innerHTML = html;
+}
+async function addSubject() {
+  var name = document.getElementById('new-subject-name').value.trim();
+  var code = document.getElementById('new-subject-code').value.trim();
+  if (!name) { showAlert('top-alert', 'Subject name required', 'error'); return; }
+  var res = await sb.from('kls_subjects').insert({ name: name, subject_code: code || null }).select().single();
+  if (res.error) { showAlert('top-alert', res.error.message, 'error'); return; }
+  document.getElementById('new-subject-name').value = '';
+  document.getElementById('new-subject-code').value = '';
+  await loadSubjects();
+  showAlert('top-alert', 'Subject added!', 'success');
+}
+async function saveSubject(id) {
+  var name = document.getElementById('subj-name-' + id).value.trim();
+  var code = document.getElementById('subj-code-' + id).value.trim();
+  var res = await sb.from('kls_subjects').update({ name: name, subject_code: code || null }).eq('id', id);
+  if (res.error) { showAlert('top-alert', res.error.message, 'error'); return; }
+  await loadSubjects();
+  showAlert('top-alert', 'Subject updated!', 'success');
+}
+async function deleteSubject(id) {
+  if (!confirm('Aa subject delete karvu chhe? Linked chapters/questions hoy to error aavi shake.')) return;
+  var res = await sb.from('kls_subjects').delete().eq('id', id);
+  if (res.error) { showAlert('top-alert', res.error.message, 'error'); return; }
+  await loadSubjects();
+  showAlert('top-alert', 'Subject deleted.', 'success');
+}
+function fillSubjectDropdowns() {
+  var opts = '<option value="">-- Subject Select --</option>';
+  for (var i = 0; i < allSubjects.length; i++) {
+    opts += '<option value="' + allSubjects[i].id + '">' + esc(allSubjects[i].name) + '</option>';
+  }
+  ['ch-subject-filter','qz-subject-filter','q-subject-filter'].forEach(function(id){
+    var sel = document.getElementById(id);
+    var cur = sel.value;
+    sel.innerHTML = opts;
+    sel.value = cur;
+  });
+}
+
+// ===== CHAPTERS =====
+async function loadChapters() {
+  var sid = document.getElementById('ch-subject-filter').value;
+  var tb = document.getElementById('chapters-tbody');
+  if (!sid) { tb.innerHTML = '<tr><td colspan="3" class="sel-empty">Subject select karo</td></tr>'; allChapters = []; return; }
+  tb.innerHTML = '<tr><td colspan="3" class="sel-empty">Loading...</td></tr>';
+  var res = await sb.from('kls_chapters').select('id,name,chapter_code,subject_id').eq('subject_id', sid).order('name');
+  allChapters = res.data || [];
+  if (!allChapters.length) { tb.innerHTML = '<tr><td colspan="3" class="sel-empty">No chapters yet</td></tr>'; return; }
+  var html = '';
+  for (var i = 0; i < allChapters.length; i++) {
+    var c = allChapters[i];
+    html += '<tr>';
+    html += '<td><input id="chap-name-' + c.id + '" value="' + esc(c.name) + '"></td>';
+    html += '<td><code style="font-size:12px">' + esc(c.chapter_code) + '</code></td>';
+    html += '<td class="row-actions"><button class="btn btn-success btn-sm" onclick="saveChapter(\'' + c.id + '\')">Save</button>' +
+            '<button class="btn btn-danger btn-sm" onclick="deleteChapter(\'' + c.id + '\')">Delete</button></td>';
+    html += '</tr>';
+  }
+  tb.innerHTML = html;
+}
+async function addChapter() {
+  var sid = document.getElementById('ch-subject-filter').value;
+  var name = document.getElementById('new-chapter-name').value.trim();
+  var code = document.getElementById('new-chapter-code').value.trim();
+  if (!sid) { showAlert('top-alert', 'Pahela subject select karo', 'error'); return; }
+  if (!name || !code) { showAlert('top-alert', 'Chapter name ane code required', 'error'); return; }
+  var res = await sb.from('kls_chapters').insert({ name: name, chapter_code: code, subject_id: sid }).select().single();
+  if (res.error) { showAlert('top-alert', res.error.message, 'error'); return; }
+  document.getElementById('new-chapter-name').value = '';
+  document.getElementById('new-chapter-code').value = '';
+  await loadChapters();
+  showAlert('top-alert', 'Chapter added!', 'success');
+}
+async function saveChapter(id) {
+  var name = document.getElementById('chap-name-' + id).value.trim();
+  var res = await sb.from('kls_chapters').update({ name: name }).eq('id', id);
+  if (res.error) { showAlert('top-alert', res.error.message, 'error'); return; }
+  await loadChapters();
+  showAlert('top-alert', 'Chapter updated!', 'success');
+}
+async function deleteChapter(id) {
+  if (!confirm('Aa chapter delete karvu chhe? Linked quizzes/questions hoy to error aavi shake.')) return;
+  var res = await sb.from('kls_chapters').delete().eq('id', id);
+  if (res.error) { showAlert('top-alert', res.error.message, 'error'); return; }
+  await loadChapters();
+  showAlert('top-alert', 'Chapter deleted.', 'success');
+}
+
+// ===== QUIZZES =====
+async function onQzSubjectChange() {
+  var sid = document.getElementById('qz-subject-filter').value;
+  var chapSel = document.getElementById('qz-chapter-filter');
+  chapSel.innerHTML = '<option value="">-- Chapter Select --</option>';
+  chapSel.disabled = !sid;
+  document.getElementById('quizzes-tbody').innerHTML = '<tr><td colspan="3" class="sel-empty">Chapter select karo</td></tr>';
+  if (!sid) return;
+  var res = await sb.from('kls_chapters').select('id,name,chapter_code').eq('subject_id', sid).order('name');
+  var chs = res.data || [];
+  var opts = '<option value="">-- Chapter Select --</option>';
+  for (var i = 0; i < chs.length; i++) {
+    opts += '<option value="' + esc(chs[i].chapter_code) + '">' + esc(chs[i].name) + '</option>';
+  }
+  chapSel.innerHTML = opts;
+  chapSel.disabled = false;
+}
+async function loadQuizzes() {
+  var cc = document.getElementById('qz-chapter-filter').value;
+  var tb = document.getElementById('quizzes-tbody');
+  if (!cc) { tb.innerHTML = '<tr><td colspan="3" class="sel-empty">Chapter select karo</td></tr>'; return; }
+  tb.innerHTML = '<tr><td colspan="3" class="sel-empty">Loading...</td></tr>';
+  var res = await sb.from('kls_quizzes').select('quiz_id,quiz_name,total_questions,chapter_code').eq('chapter_code', cc).order('quiz_name');
+  var rows = res.data || [];
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="3" class="sel-empty">No quizzes yet</td></tr>'; return; }
+  var html = '';
+  for (var i = 0; i < rows.length; i++) {
+    var q = rows[i];
+    html += '<tr>';
+    html += '<td><input id="quiz-name-' + esc(q.quiz_id) + '" value="' + esc(q.quiz_name) + '"></td>';
+    html += '<td>' + (q.total_questions || 0) + '</td>';
+    html += '<td class="row-actions"><button class="btn btn-success btn-sm" onclick="saveQuiz(\'' + esc(q.quiz_id) + '\')">Save</button>' +
+            '<button class="btn btn-danger btn-sm" onclick="deleteQuiz(\'' + esc(q.quiz_id) + '\')">Delete</button></td>';
+    html += '</tr>';
+  }
+  tb.innerHTML = html;
+}
+async function addQuiz() {
+  var cc = document.getElementById('qz-chapter-filter').value;
+  var name = document.getElementById('new-quiz-name').value.trim();
+  if (!cc) { showAlert('top-alert', 'Pahela chapter select karo', 'error'); return; }
+  if (!name) { showAlert('top-alert', 'Quiz name required', 'error'); return; }
+  var quizId = 'QZ_' + Date.now();
+  var res = await sb.from('kls_quizzes').insert({ quiz_id: quizId, quiz_name: name, chapter_code: cc, total_questions: 0 });
+  if (res.error) { showAlert('top-alert', res.error.message, 'error'); return; }
+  document.getElementById('new-quiz-name').value = '';
+  await loadQuizzes();
+  showAlert('top-alert', 'Quiz added!', 'success');
+}
+async function saveQuiz(quizId) {
+  var name = document.getElementById('quiz-name-' + quizId).value.trim();
+  var res = await sb.from('kls_quizzes').update({ quiz_name: name }).eq('quiz_id', quizId);
+  if (res.error) { showAlert('top-alert', res.error.message, 'error'); return; }
+  await loadQuizzes();
+  showAlert('top-alert', 'Quiz updated!', 'success');
+}
+async function deleteQuiz(quizId) {
+  if (!confirm('Aa quiz delete karvu chhe?')) return;
+  var res = await sb.from('kls_quizzes').delete().eq('quiz_id', quizId);
+  if (res.error) { showAlert('top-alert', res.error.message, 'error'); return; }
+  await loadQuizzes();
+  showAlert('top-alert', 'Quiz deleted.', 'success');
+}
+
+// ===== QUESTIONS =====
+async function onQSubjectChange() {
+  var sid = document.getElementById('q-subject-filter').value;
+  var chapSel = document.getElementById('q-chapter-filter');
+  var quizSel = document.getElementById('q-quiz-filter');
+  chapSel.innerHTML = '<option value="">-- Chapter Select --</option>';
+  chapSel.disabled = !sid;
+  quizSel.innerHTML = '<option value="">-- Quiz (optional) --</option>';
+  quizSel.disabled = true;
+  document.getElementById('questions-tbody').innerHTML = '<tr><td colspan="5" class="sel-empty">Chapter select karo</td></tr>';
+  document.getElementById('add-q-btn').disabled = true;
+  document.getElementById('q-count').textContent = '0 questions';
+  if (!sid) return;
+  var res = await sb.from('kls_chapters').select('id,name,chapter_code').eq('subject_id', sid).order('name');
+  var chs = res.data || [];
+  var opts = '<option value="">-- Chapter Select --</option>';
+  for (var i = 0; i < chs.length; i++) {
+    opts += '<option value="' + esc(chs[i].chapter_code) + '" data-id="' + esc(chs[i].id) + '">' + esc(chs[i].name) + '</option>';
+  }
+  chapSel.innerHTML = opts;
+  chapSel.disabled = false;
+}
+async function onQChapterChange() {
+  var cc = document.getElementById('q-chapter-filter').value;
+  var quizSel = document.getElementById('q-quiz-filter');
+  quizSel.innerHTML = '<option value="">-- Quiz (optional) --</option>';
+  quizSel.disabled = true;
+  document.getElementById('add-q-btn').disabled = !cc;
+  if (!cc) { document.getElementById('questions-tbody').innerHTML = '<tr><td colspan="5" class="sel-empty">Chapter select karo</td></tr>'; return; }
+  var res = await sb.from('kls_quizzes').select('quiz_id,quiz_name').eq('chapter_code', cc).order('quiz_name');
+  var rows = res.data || [];
+  if (rows.length) {
+    var opts = '<option value="">-- All Chapter Questions --</option>';
+    for (var i = 0; i < rows.length; i++) {
+      opts += '<option value="' + esc(rows[i].quiz_id) + '">' + esc(rows[i].quiz_name) + '</option>';
+    }
+    quizSel.innerHTML = opts;
+    quizSel.disabled = false;
+  }
+  await loadQuestions();
+}
+async function loadQuestions() {
+  var cc = document.getElementById('q-chapter-filter').value;
+  var qid = document.getElementById('q-quiz-filter').value;
+  var tb = document.getElementById('questions-tbody');
+  if (!cc) { tb.innerHTML = '<tr><td colspan="5" class="sel-empty">Chapter select karo</td></tr>'; return; }
+  tb.innerHTML = '<tr><td colspan="5" class="sel-empty">Loading...</td></tr>';
+  var query = sb.from('kls_questions').select('*').eq('chapter_code', cc);
+  if (qid) query = query.eq('quiz_id', qid);
+  var res = await query.order('created_at', {ascending: false}).limit(300);
+  allQuestions = res.data || [];
+  document.getElementById('q-count').textContent = allQuestions.length + ' questions';
+  if (!allQuestions.length) { tb.innerHTML = '<tr><td colspan="5" class="sel-empty">No questions found</td></tr>'; return; }
+  var html = '';
+  for (var i = 0; i < allQuestions.length; i++) {
+    var q = allQuestions[i];
+    var cls = diffClass(q.difficulty_level);
+    var txt = (q.question || '').substring(0, 90) + (q.question && q.question.length > 90 ? '...' : '');
+    html += '<tr>';
+    html += '<td style="color:var(--muted)">' + (i + 1) + '</td>';
+    html += '<td>' + esc(txt) + (q.suggestion ? ' <span class="q-badge" style="background:#fff3cd;color:#856404">&#128161; suggestion</span>' : '') + '</td>';
+    html += '<td><span class="q-badge ' + cls + '">' + esc(q.difficulty_level || '?') + '</span></td>';
+    html += '<td>' + esc(q.correct_answer || '-') + '</td>';
+    html += '<td class="row-actions"><button class="btn btn-primary btn-sm" onclick="openQuestionModal(\'' + q.id + '\')">Edit</button></td>';
+    html += '</tr>';
+  }
+  tb.innerHTML = html;
+}
+
+function openQuestionModal(id) {
+  editingQuestionId = id;
+  var deleteBtn = document.getElementById('q-delete-btn');
+  if (id) {
+    var q = null;
+    for (var i = 0; i < allQuestions.length; i++) { if (allQuestions[i].id === id) { q = allQuestions[i]; break; } }
+    if (!q) return;
+    document.getElementById('q-modal-title').textContent = 'Edit Question';
+    document.getElementById('qf-question').value = q.question || '';
+    document.getElementById('qf-a').value = q.option_a || '';
+    document.getElementById('qf-b').value = q.option_b || '';
+    document.getElementById('qf-c').value = q.option_c || '';
+    document.getElementById('qf-d').value = q.option_d || '';
+    document.getElementById('qf-e').value = q.option_e || '';
+    document.getElementById('qf-correct').value = q.correct_answer || 'A';
+    document.getElementById('qf-difficulty').value = q.difficulty_level || 'મધ્યમ';
+    document.getElementById('qf-solution').value = q.solution || '';
+    deleteBtn.style.display = '';
+  } else {
+    document.getElementById('q-modal-title').textContent = 'Add Question';
+    document.getElementById('qf-question').value = '';
+    document.getElementById('qf-a').value = '';
+    document.getElementById('qf-b').value = '';
+    document.getElementById('qf-c').value = '';
+    document.getElementById('qf-d').value = '';
+    document.getElementById('qf-e').value = '';
+    document.getElementById('qf-correct').value = 'A';
+    document.getElementById('qf-difficulty').value = 'મધ્યમ';
+    document.getElementById('qf-solution').value = '';
+    deleteBtn.style.display = 'none';
+  }
+  document.getElementById('q-modal').classList.add('open');
+}
+function closeQuestionModal() {
+  document.getElementById('q-modal').classList.remove('open');
+  editingQuestionId = null;
+}
+
+async function saveQuestion() {
+  var question = document.getElementById('qf-question').value.trim();
+  if (!question) { showAlert('q-modal-alert', 'Question text required', 'error'); return; }
+  var payload = {
+    question: question,
+    option_a: document.getElementById('qf-a').value.trim(),
+    option_b: document.getElementById('qf-b').value.trim(),
+    option_c: document.getElementById('qf-c').value.trim(),
+    option_d: document.getElementById('qf-d').value.trim(),
+    option_e: document.getElementById('qf-e').value.trim() || 'E - Not Attempted',
+    correct_answer: document.getElementById('qf-correct').value,
+    difficulty_level: document.getElementById('qf-difficulty').value,
+    solution: document.getElementById('qf-solution').value.trim()
+  };
+  var btn = document.getElementById('q-save-btn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  var res;
+  if (editingQuestionId) {
+    res = await sb.from('kls_questions').update(payload).eq('id', editingQuestionId);
+  } else {
+    var sid = document.getElementById('q-subject-filter').value;
+    var cc = document.getElementById('q-chapter-filter').value;
+    var chapOpt = document.querySelector('#q-chapter-filter option[value="' + cc + '"]');
+    var chapId = chapOpt ? chapOpt.getAttribute('data-id') : null;
+    var qid = document.getElementById('q-quiz-filter').value;
+    payload.subject_id = sid;
+    payload.chapter_code = cc;
+    payload.chapter_id = chapId;
+    payload.quiz_id = qid || null;
+    res = await sb.from('kls_questions').insert(payload);
+  }
+  btn.disabled = false; btn.textContent = 'Save';
+  if (res.error) { showAlert('q-modal-alert', res.error.message, 'error'); return; }
+  closeQuestionModal();
+  await loadQuestions();
+  showAlert('top-alert', editingQuestionId ? 'Question updated!' : 'Question added!', 'success');
+}
+
+async function deleteQuestionFromModal() {
+  if (!editingQuestionId) return;
+  if (!confirm('Aa question kayami delete karvu chhe? Aa action undo nahi thay shake.')) return;
+  var res = await sb.from('kls_questions').delete().eq('id', editingQuestionId);
+  if (res.error) { showAlert('q-modal-alert', res.error.message, 'error'); return; }
+  closeQuestionModal();
+  await loadQuestions();
+  showAlert('top-alert', 'Question deleted.', 'success');
+}
+
+(async function(){
+  if (!await initAuth()) return;
+  await loadSubjects();
+})();
+</script>
+</body>
+</html>
