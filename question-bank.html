@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Question Bank - KAPILA</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
 <style>
 :root{--primary:#6c5ce7;--primary-light:#a29bfe;--bg:#f0efff;--card:#fff;--text:#2d3436;--muted:#636e72;--border:#e0dff7;--green:#00b894;--red:#d63031;--orange:#e17055;--radius:10px;--shadow:0 2px 12px rgba(108,92,231,.1);}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -65,6 +68,14 @@ label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bot
 .tab-panel{display:none;}
 .tab-panel.active{display:block;}
 .row-actions{display:flex;gap:6px;flex-wrap:wrap;}
+.preview-box{background:#f8f7ff;border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:18px;}
+.preview-label{font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;}
+.preview-q{font-size:15px;font-weight:600;line-height:1.7;margin-bottom:10px;word-break:break-word;}
+.preview-opt{padding:7px 10px;border-radius:6px;margin-bottom:5px;font-size:14px;background:#fff;border:1px solid var(--border);word-break:break-word;}
+.preview-opt.is-correct{background:#d4edda;border-color:#b7e2c3;color:#155724;font-weight:700;}
+.preview-solution{margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);font-size:13px;color:var(--muted);line-height:1.6;word-break:break-word;}
+.preview-solution .preview-label{margin-bottom:6px;}
+.katex{font-size:1.05em;}
 </style>
 </head>
 <body>
@@ -161,18 +172,33 @@ label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bot
   <div class="modal-box">
     <h3 id="q-modal-title">Add Question</h3>
     <div id="q-modal-alert"></div>
-    <div class="fg"><label>Question</label><textarea id="qf-question"></textarea></div>
-    <div class="opt-grid">
-      <div class="fg"><label>Option A</label><input id="qf-a"></div>
-      <div class="fg"><label>Option B</label><input id="qf-b"></div>
-      <div class="fg"><label>Option C</label><input id="qf-c"></div>
-      <div class="fg"><label>Option D</label><input id="qf-d"></div>
+
+    <div class="preview-box" id="qf-preview-wrap">
+      <div class="preview-label">&#128065; Live Preview (jevu student ne dekhashe)</div>
+      <div class="preview-q" id="qf-prev-question"></div>
+      <div id="qf-prev-opt-a" class="preview-opt"></div>
+      <div id="qf-prev-opt-b" class="preview-opt"></div>
+      <div id="qf-prev-opt-c" class="preview-opt"></div>
+      <div id="qf-prev-opt-d" class="preview-opt"></div>
+      <div id="qf-prev-opt-e" class="preview-opt" style="display:none"></div>
+      <div class="preview-solution">
+        <div class="preview-label">Solution</div>
+        <div id="qf-prev-solution"></div>
+      </div>
     </div>
-    <div class="fg"><label>Option E (optional)</label><input id="qf-e"></div>
+
+    <div class="fg"><label>Question</label><textarea id="qf-question" oninput="updateQfPreview()"></textarea></div>
+    <div class="opt-grid">
+      <div class="fg"><label>Option A</label><input id="qf-a" oninput="updateQfPreview()"></div>
+      <div class="fg"><label>Option B</label><input id="qf-b" oninput="updateQfPreview()"></div>
+      <div class="fg"><label>Option C</label><input id="qf-c" oninput="updateQfPreview()"></div>
+      <div class="fg"><label>Option D</label><input id="qf-d" oninput="updateQfPreview()"></div>
+    </div>
+    <div class="fg"><label>Option E (optional)</label><input id="qf-e" oninput="updateQfPreview()"></div>
     <div class="opt-grid">
       <div class="fg">
         <label>Correct Answer</label>
-        <select id="qf-correct">
+        <select id="qf-correct" onchange="updateQfPreview()">
           <option value="A">A</option><option value="B">B</option>
           <option value="C">C</option><option value="D">D</option>
           <option value="E">E</option>
@@ -187,7 +213,7 @@ label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bot
         </select>
       </div>
     </div>
-    <div class="fg"><label>Solution</label><textarea id="qf-solution"></textarea></div>
+    <div class="fg"><label>Solution</label><textarea id="qf-solution" oninput="updateQfPreview()"></textarea></div>
     <div class="modal-footer">
       <button class="btn btn-danger" id="q-delete-btn" onclick="deleteQuestionFromModal()" style="display:none">Delete</button>
       <button class="btn btn-ghost" onclick="closeQuestionModal()">Cancel</button>
@@ -222,6 +248,37 @@ function diffClass(d) {
   if (d === 'સરળ') return 'q-easy';
   if (d === 'મુશ્કેલ') return 'q-hard';
   return 'q-medium';
+}
+
+function renderRichMath(el) {
+  if (window.renderMathInElement) {
+    try {
+      renderMathInElement(el, {
+        delimiters: [
+          {left: '$$', right: '$$', display: true},
+          {left: '\\[', right: '\\]', display: true},
+          {left: '$', right: '$', display: false},
+          {left: '\\(', right: '\\)', display: false}
+        ],
+        throwOnError: false
+      });
+    } catch (e) { /* ignore malformed latex */ }
+  }
+}
+
+function updateQfPreview() {
+  var correct = (document.getElementById('qf-correct').value || '').toUpperCase();
+  document.getElementById('qf-prev-question').innerHTML = document.getElementById('qf-question').value || '<span style="color:var(--muted)">(question khali chhe)</span>';
+  ['a','b','c','d','e'].forEach(function(letter){
+    var val = document.getElementById('qf-' + letter).value;
+    var box = document.getElementById('qf-prev-opt-' + letter);
+    if (letter === 'e' && !val) { box.style.display = 'none'; return; }
+    box.style.display = '';
+    box.innerHTML = letter.toUpperCase() + ') ' + (val || '');
+    box.classList.toggle('is-correct', correct === letter.toUpperCase());
+  });
+  document.getElementById('qf-prev-solution').innerHTML = document.getElementById('qf-solution').value || '<span style="color:var(--muted)">(solution nathi)</span>';
+  renderRichMath(document.getElementById('qf-preview-wrap'));
 }
 
 async function initAuth() {
@@ -520,6 +577,7 @@ function openQuestionModal(id) {
     document.getElementById('qf-solution').value = '';
     deleteBtn.style.display = 'none';
   }
+  updateQfPreview();
   document.getElementById('q-modal').classList.add('open');
 }
 function closeQuestionModal() {
