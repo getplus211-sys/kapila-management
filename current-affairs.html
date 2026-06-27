@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="gu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Current Affairs - KAPILA</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--primary:#6c5ce7;--primary-light:#a29bfe;--bg:#f0efff;--card:#fff;--text:#2d3436;--muted:#636e72;--border:#e0dff7;--green:#00b894;--red:#d63031;--orange:#e17055;--radius:10px;--shadow:0 2px 12px rgba(108,92,231,.1);}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+.topbar{background:var(--card);border-bottom:1px solid var(--border);padding:10px 16px;font-size:12px;color:var(--muted);font-weight:600;display:flex;align-items:center;justify-content:space-between;}
+.wrap{padding:16px;max-width:1100px;margin:0 auto;}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;}
+.page-title{font-size:22px;font-weight:700;}
+.page-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.card{background:var(--card);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);margin-bottom:12px;}
+input,select,textarea{width:100%;border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:13px;outline:none;font-family:inherit;background:#fafafa;}
+input:focus,select:focus,textarea:focus{border-color:var(--primary-light);background:#fff;}
+textarea{resize:vertical;min-height:70px;}
+label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px;}
+.fg{margin-bottom:14px;}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;transition:opacity .2s,transform .1s;}
+.btn:active{transform:scale(.97);}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-success{background:var(--green);color:#fff;}
+.btn-danger{background:var(--red);color:#fff;}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-sm{padding:5px 10px;font-size:12px;}
+.alert{padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:12px;}
+.alert-error{background:#f8d7da;color:#721c24;}
+.alert-success{background:#d4edda;color:#155724;}
+.alert-info{background:#d1ecf1;color:#0c5460;}
+.loading,.empty{text-align:center;padding:30px;color:var(--muted);font-size:14px;}
+.spinner{display:inline-block;width:22px;height:22px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:6px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.sec-label{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:0 0 10px;}
+.opt-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+@media(max-width:600px){.opt-grid{grid-template-columns:1fr;}}
+.q-easy{background:#d4edda;color:#155724;}
+.q-medium{background:#fff3cd;color:#856404;}
+.q-hard{background:#f8d7da;color:#721c24;}
+.q-badge{font-size:10px;padding:2px 7px;border-radius:8px;white-space:nowrap;font-weight:700;}
+.toggle{position:relative;width:40px;height:22px;flex-shrink:0;display:inline-block;}
+.toggle input{opacity:0;width:0;height:0;position:absolute;}
+.toggle-slider{position:absolute;inset:0;border-radius:22px;background:#ccc;cursor:pointer;transition:.3s;}
+.toggle input:checked+.toggle-slider{background:var(--green);}
+.toggle-slider:before{content:"";position:absolute;width:16px;height:16px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s;}
+.toggle input:checked+.toggle-slider:before{transform:translateX(18px);}
+.toggle-wrap{display:flex;align-items:center;gap:8px;}
+.toggle-label{font-size:12px;font-weight:700;}
+
+.ca-wrap{display:flex;gap:14px;align-items:flex-start;}
+.ca-list-panel{width:270px;flex-shrink:0;position:sticky;top:10px;}
+.ca-editor-panel{flex:1;min-width:0;}
+.new-entry-btn{width:100%;padding:10px;border:2px dashed var(--primary-light);border-radius:10px;background:transparent;cursor:pointer;color:var(--primary);font-size:14px;font-weight:600;font-family:inherit;margin-bottom:10px;}
+.new-entry-btn:hover{background:#f5f3ff;}
+.entry-card{border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;background:var(--card);cursor:pointer;}
+.entry-card:hover{border-color:var(--primary-light);}
+.entry-card.selected{border-color:var(--primary);background:#f5f3ff;}
+.entry-card .ed-date{font-size:11px;color:var(--primary);font-weight:700;margin-bottom:3px;}
+.entry-card .ed-title{font-size:13px;font-weight:700;line-height:1.4;}
+.entry-card .ed-meta{font-size:11px;color:var(--muted);margin-top:5px;}
+.photo-row{display:flex;align-items:center;gap:10px;padding:8px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;}
+.photo-row img{width:50px;height:50px;object-fit:cover;border-radius:6px;background:var(--bg);flex-shrink:0;}
+.photo-row .purl{flex:1;font-size:12px;color:var(--muted);word-break:break-all;}
+.add-row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;padding:12px;background:var(--bg);border-radius:8px;}
+.add-row .fg{flex:1;min-width:140px;margin-bottom:0;}
+.filter-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+.filter-row select{flex:1;min-width:130px;}
+.q-browse{border:1px solid var(--border);border-radius:8px;max-height:300px;overflow-y:auto;background:#fafafa;}
+.q-item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;}
+.q-item:last-child{border-bottom:none;}
+.q-item:hover{background:#f0efff;}
+.q-item.already{opacity:.4;pointer-events:none;}
+.q-text{flex:1;line-height:1.5;}
+.sel-table{width:100%;border-collapse:collapse;font-size:13px;}
+.sel-table th{background:var(--bg);padding:8px 10px;text-align:left;font-size:12px;color:var(--muted);border-bottom:2px solid var(--border);}
+.sel-table td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top;}
+.sel-table tr:last-child td{border-bottom:none;}
+.sel-empty{text-align:center;padding:20px;color:var(--muted);font-size:13px;}
+.count-badge{background:var(--primary);color:#fff;border-radius:12px;font-size:11px;padding:2px 8px;font-weight:700;}
+.badge-on{background:#d4edda;color:#155724;font-size:10px;padding:2px 7px;border-radius:8px;font-weight:700;}
+.badge-off{background:#f1f1f1;color:var(--muted);font-size:10px;padding:2px 7px;border-radius:8px;font-weight:700;}
+@media(max-width:700px){.ca-wrap{flex-direction:column;}.ca-list-panel{width:100%;position:static;}}
+</style>
+</head>
+<body>
+<div class="topbar">KAPILA Management System <a href="index.html" style="color:var(--primary);text-decoration:none;font-size:12px">&#8592; Dashboard</a></div>
+<div class="wrap">
+  <div class="page-header">
+    <div class="page-title">Current Affairs</div>
+    <div class="page-actions">
+      <button class="btn btn-ghost btn-sm" onclick="doLogout()">Logout</button>
+      <a href="index.html" class="btn btn-ghost btn-sm">Back</a>
+    </div>
+  </div>
+  <div id="top-alert"></div>
+  <div class="ca-wrap">
+    <div class="ca-list-panel">
+      <div class="sec-label">Entries</div>
+      <button class="new-entry-btn" onclick="newEntry()">+ New Entry</button>
+      <div id="entry-list"><div class="loading"><span class="spinner"></span>Loading...</div></div>
+    </div>
+    <div class="ca-editor-panel">
+      <div id="editor-placeholder" class="card" style="text-align:center;padding:48px 24px;color:var(--muted)">
+        <div style="font-size:40px;margin-bottom:12px">&#128240;</div>
+        <div style="font-size:15px;font-weight:600">Left mathi entry select karo ya navi banavo</div>
+      </div>
+      <div id="editor" style="display:none">
+
+        <div class="card">
+          <div class="sec-label">Entry Details</div>
+          <div id="entry-alert"></div>
+          <div class="opt-grid">
+            <div class="fg"><label>Date</label><input type="date" id="ef-date"></div>
+            <div class="fg" style="display:flex;align-items:flex-end">
+              <div class="toggle-wrap">
+                <label class="toggle"><input type="checkbox" id="ef-active" checked><span class="toggle-slider"></span></label>
+                <span class="toggle-label" style="color:var(--muted)">Active (app ma dekhashe)</span>
+              </div>
+            </div>
+          </div>
+          <div class="fg"><label>Title</label><input id="ef-title" placeholder="e.g. 26 January - Republic Day"></div>
+          <div class="fg"><label>Summary (short, list ma dekhashe)</label><textarea id="ef-summary" style="min-height:50px"></textarea></div>
+          <div class="fg"><label>Content (full article)</label><textarea id="ef-content" style="min-height:160px"></textarea></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary" id="save-entry-btn" onclick="saveEntryDetails()">Save Entry</button>
+            <button class="btn btn-danger btn-sm" id="delete-entry-btn" onclick="deleteEntry()" style="display:none">Delete Entry</button>
+          </div>
+        </div>
+
+        <div class="card" id="photos-card" style="display:none">
+          <div class="sec-label">Photos</div>
+          <div id="photo-list"><div class="sel-empty">No photos added</div></div>
+          <div class="add-row">
+            <div class="fg"><label>Photo URL</label><input id="new-photo-url" placeholder="https://..."></div>
+            <div class="fg" style="max-width:100px"><label>Order</label><input type="number" id="new-photo-order" value="1" min="1"></div>
+            <button class="btn btn-primary" onclick="addPhoto()">+ Add</button>
+          </div>
+        </div>
+
+        <div class="card" id="quiz-card" style="display:none">
+          <div class="sec-label">Quiz for this Entry (optional)</div>
+          <div id="no-quiz-wrap">
+            <p style="font-size:13px;color:var(--muted);margin-bottom:10px">Aa entry sathe koi quiz link nathi. Jo aa current affair vishe questions add karva hoy to quiz banavo.</p>
+            <button class="btn btn-outline" id="create-quiz-btn" onclick="createQuiz()" style="border:1.5px solid var(--primary);color:var(--primary);background:transparent">+ Create Quiz for this Entry</button>
+          </div>
+          <div id="has-quiz-wrap" style="display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+              <div style="flex:2;min-width:160px"><label>Quiz Name</label><input id="qz-name"></div>
+              <div style="flex:1;min-width:100px"><label>Time Limit (min)</label><input type="number" id="qz-time" min="1"></div>
+              <div class="toggle-wrap">
+                <label class="toggle"><input type="checkbox" id="qz-toggle" onchange="toggleQuizLive()"><span class="toggle-slider"></span></label>
+                <span class="toggle-label" id="qz-toggle-label" style="color:var(--muted)">OFF</span>
+              </div>
+            </div>
+            <div id="quiz-alert"></div>
+            <button class="btn btn-primary btn-sm" onclick="saveQuizSettings()">Save Quiz Settings</button>
+            <hr style="border:none;border-top:1px solid var(--border);margin:16px 0">
+
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+              <div class="sec-label" style="margin:0">Browse &amp; Add Questions</div>
+              <span class="count-badge" id="browse-count">0</span>
+            </div>
+            <div class="filter-row">
+              <select id="f-subject" onchange="onSubjectChange()"><option value="">-- Subject --</option></select>
+              <select id="f-chapter" onchange="onChapterChange()" disabled><option value="">-- Chapter --</option></select>
+              <select id="f-quiz" onchange="onQuizFilter()" disabled><option value="">-- Quiz (optional) --</option></select>
+            </div>
+            <div id="q-browse-wrap"><div class="sel-empty">Subject select karo</div></div>
+
+            <div style="display:flex;align-items:center;justify-content:space-between;margin:16px 0 10px">
+              <div class="sec-label" style="margin:0">Selected Questions <span class="count-badge" id="sel-count">0</span></div>
+              <div style="display:flex;gap:8px;align-items:center">
+                <span style="font-size:12px;color:var(--muted)">Total saved: <strong id="sel-total">0</strong></span>
+                <button class="btn btn-success btn-sm" id="save-q-btn" onclick="saveQuestions()" disabled>Save Questions</button>
+              </div>
+            </div>
+            <table class="sel-table">
+              <thead><tr><th>#</th><th>Question</th><th>Difficulty</th><th>Action</th></tr></thead>
+              <tbody id="sel-tbody"><tr><td colspan="4" class="sel-empty">No questions selected yet</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL  = 'https://bhmycvrbucmbbrpzeane.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJobXljdnJidWNtYmJycHplYW5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2OTQwOTYsImV4cCI6MjA4MDI3MDA5Nn0.qQ3bw9cADG0P8hbGwx76Oeg54l-9FbRWxc92nZdSPL4';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+var currentUser = null;
+var allEntries = [];
+var curEntry = null;
+var curQuizSetting = null;
+var allBrowseQs = [];
+var selectedQs = [];
+var savedQIds = [];
+
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function showAlert(elId, msg, type) {
+  var el = document.getElementById(elId);
+  if (!el) return;
+  el.innerHTML = '<div class="alert alert-' + type + '">' + esc(msg) + '</div>';
+  setTimeout(function(){ if(el) el.innerHTML = ''; }, 5000);
+}
+function diffClass(d) {
+  if (d === 'સરળ') return 'q-easy';
+  if (d === 'મુશ્કેલ') return 'q-hard';
+  return 'q-medium';
+}
+function fmtDate(d) {
+  if (!d) return '-';
+  var parts = d.split('-');
+  if (parts.length !== 3) return d;
+  return parts[2] + '/' + parts[1] + '/' + parts[0];
+}
+
+async function initAuth() {
+  var res = await sb.auth.getSession();
+  var session = res.data.session;
+  if (!session) { window.location.href = 'index.html'; return false; }
+  currentUser = session.user;
+  var r = await sb.from('ngm_admin_roles').select('role,is_active').eq('user_id', currentUser.id).eq('is_active', true).limit(1);
+  if (!r.data || !r.data.length) { window.location.href = 'index.html'; return false; }
+  return true;
+}
+async function doLogout() {
+  await sb.auth.signOut();
+  window.location.href = 'index.html';
+}
+
+// ===== ENTRY LIST =====
+async function loadEntries() {
+  var res = await sb.from('kls_current_affair_entries').select('*').order('entry_date', {ascending: false});
+  allEntries = res.data || [];
+  renderEntryList();
+}
+function renderEntryList() {
+  var el = document.getElementById('entry-list');
+  if (!allEntries.length) { el.innerHTML = '<div class="empty" style="padding:16px;font-size:13px">No entries yet.</div>'; return; }
+  var html = '';
+  for (var i = 0; i < allEntries.length; i++) {
+    var e = allEntries[i];
+    var sel = curEntry && curEntry.current_affair_entry_id === e.current_affair_entry_id;
+    html += '<div class="entry-card ' + (sel ? 'selected' : '') + '" onclick="selectEntry(' + e.current_affair_entry_id + ')">';
+    html += '<div class="ed-date">' + fmtDate(e.entry_date) + '</div>';
+    html += '<div class="ed-title">' + esc(e.title) + '</div>';
+    html += '<div class="ed-meta">' + (e.is_active ? '<span class="badge-on">Active</span>' : '<span class="badge-off">Inactive</span>') + (e.quiz_id ? ' &nbsp;&#10067; Quiz linked' : '') + '</div>';
+    html += '</div>';
+  }
+  el.innerHTML = html;
+}
+
+async function selectEntry(id) {
+  curEntry = null;
+  for (var i = 0; i < allEntries.length; i++) { if (allEntries[i].current_affair_entry_id === id) { curEntry = allEntries[i]; break; } }
+  if (!curEntry) return;
+  openEditor();
+  await loadPhotos();
+  await loadQuizForEntry();
+  renderEntryList();
+}
+function newEntry() {
+  curEntry = null;
+  openEditor();
+  document.getElementById('photos-card').style.display = 'none';
+  document.getElementById('quiz-card').style.display = 'none';
+  renderEntryList();
+}
+
+function openEditor() {
+  document.getElementById('editor-placeholder').style.display = 'none';
+  document.getElementById('editor').style.display = 'block';
+  document.getElementById('ef-date').value = curEntry ? curEntry.entry_date : new Date().toISOString().slice(0,10);
+  document.getElementById('ef-title').value = curEntry ? curEntry.title : '';
+  document.getElementById('ef-summary').value = curEntry ? (curEntry.summary || '') : '';
+  document.getElementById('ef-content').value = curEntry ? curEntry.content : '';
+  document.getElementById('ef-active').checked = curEntry ? !!curEntry.is_active : true;
+  document.getElementById('delete-entry-btn').style.display = curEntry ? '' : 'none';
+  document.getElementById('photos-card').style.display = curEntry ? '' : 'none';
+  document.getElementById('quiz-card').style.display = curEntry ? '' : 'none';
+}
+
+async function saveEntryDetails() {
+  var dateVal = document.getElementById('ef-date').value;
+  var title = document.getElementById('ef-title').value.trim();
+  var content = document.getElementById('ef-content').value.trim();
+  if (!dateVal) { showAlert('entry-alert', 'Date required', 'error'); return; }
+  if (!title) { showAlert('entry-alert', 'Title required', 'error'); return; }
+  if (!content) { showAlert('entry-alert', 'Content required', 'error'); return; }
+  var parts = dateVal.split('-');
+  var payload = {
+    entry_date: dateVal,
+    title: title,
+    summary: document.getElementById('ef-summary').value.trim() || null,
+    content: content,
+    month_number: parseInt(parts[1], 10),
+    year_number: parseInt(parts[0], 10),
+    is_active: document.getElementById('ef-active').checked,
+    updated_by: currentUser.id
+  };
+  var btn = document.getElementById('save-entry-btn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  var res;
+  if (curEntry) {
+    res = await sb.from('kls_current_affair_entries').update(payload).eq('current_affair_entry_id', curEntry.current_affair_entry_id).select().single();
+  } else {
+    payload.created_by = currentUser.id;
+    res = await sb.from('kls_current_affair_entries').insert(payload).select().single();
+  }
+  btn.disabled = false; btn.textContent = 'Save Entry';
+  if (res.error) { showAlert('entry-alert', res.error.message, 'error'); return; }
+  curEntry = res.data;
+  document.getElementById('delete-entry-btn').style.display = '';
+  document.getElementById('photos-card').style.display = '';
+  document.getElementById('quiz-card').style.display = '';
+  await loadEntries();
+  await loadPhotos();
+  await loadQuizForEntry();
+  showAlert('top-alert', 'Entry saved!', 'success');
+}
+
+async function deleteEntry() {
+  if (!curEntry) return;
+  if (!confirm('Aa entry delete karvi chhe? Photos ane linked quiz/questions pan delete thay jashe.')) return;
+  await sb.from('kls_current_affair_entry_photos').delete().eq('current_affair_entry_id', curEntry.current_affair_entry_id);
+  if (curEntry.quiz_id) {
+    await sb.from('kls_current_affair_questions').delete().eq('quiz_id', curEntry.quiz_id);
+    await sb.from('kls_current_affair_settings').delete().eq('quiz_id', curEntry.quiz_id);
+  }
+  await sb.from('kls_current_affair_entries').delete().eq('current_affair_entry_id', curEntry.current_affair_entry_id);
+  curEntry = null;
+  document.getElementById('editor').style.display = 'none';
+  document.getElementById('editor-placeholder').style.display = 'block';
+  await loadEntries();
+  showAlert('top-alert', 'Entry deleted.', 'success');
+}
+
+// ===== PHOTOS =====
+async function loadPhotos() {
+  if (!curEntry) return;
+  var res = await sb.from('kls_current_affair_entry_photos').select('*').eq('current_affair_entry_id', curEntry.current_affair_entry_id).order('display_order');
+  renderPhotos(res.data || []);
+}
+function renderPhotos(rows) {
+  var el = document.getElementById('photo-list');
+  if (!rows.length) { el.innerHTML = '<div class="sel-empty">No photos added</div>'; return; }
+  var html = '';
+  for (var i = 0; i < rows.length; i++) {
+    var p = rows[i];
+    html += '<div class="photo-row">';
+    html += '<img src="' + esc(p.photo_url) + '" onerror="this.style.opacity=0.2">';
+    html += '<div class="purl">' + esc(p.photo_url) + '<br><span style="color:var(--primary)">Order: ' + p.display_order + '</span></div>';
+    html += '<button class="btn btn-danger btn-sm" onclick="removePhoto(' + p.current_affair_entry_photo_id + ')">Remove</button>';
+    html += '</div>';
+  }
+  el.innerHTML = html;
+}
+async function addPhoto() {
+  if (!curEntry) return;
+  var url = document.getElementById('new-photo-url').value.trim();
+  var order = parseInt(document.getElementById('new-photo-order').value, 10) || 1;
+  if (!url) { showAlert('top-alert', 'Photo URL required', 'error'); return; }
+  var res = await sb.from('kls_current_affair_entry_photos').insert({
+    current_affair_entry_id: curEntry.current_affair_entry_id, photo_url: url, display_order: order
+  });
+  if (res.error) { showAlert('top-alert', res.error.message, 'error'); return; }
+  document.getElementById('new-photo-url').value = '';
+  document.getElementById('new-photo-order').value = '1';
+  await loadPhotos();
+}
+async function removePhoto(id) {
+  if (!confirm('Aa photo remove karvu chhe?')) return;
+  await sb.from('kls_current_affair_entry_photos').delete().eq('current_affair_entry_photo_id', id);
+  await loadPhotos();
+}
+
+// ===== QUIZ FOR ENTRY =====
+async function loadQuizForEntry() {
+  curQuizSetting = null;
+  selectedQs = []; savedQIds = [];
+  if (!curEntry || !curEntry.quiz_id) {
+    document.getElementById('no-quiz-wrap').style.display = '';
+    document.getElementById('has-quiz-wrap').style.display = 'none';
+    return;
+  }
+  var res = await sb.from('kls_current_affair_settings').select('*').eq('quiz_id', curEntry.quiz_id).single();
+  if (res.error || !res.data) {
+    document.getElementById('no-quiz-wrap').style.display = '';
+    document.getElementById('has-quiz-wrap').style.display = 'none';
+    return;
+  }
+  curQuizSetting = res.data;
+  document.getElementById('no-quiz-wrap').style.display = 'none';
+  document.getElementById('has-quiz-wrap').style.display = '';
+  document.getElementById('qz-name').value = curQuizSetting.quiz_name;
+  document.getElementById('qz-time').value = curQuizSetting.time_limit;
+  document.getElementById('qz-toggle').checked = !!curQuizSetting.is_enabled;
+  var lbl = document.getElementById('qz-toggle-label');
+  lbl.textContent = curQuizSetting.is_enabled ? 'LIVE' : 'OFF';
+  lbl.style.color = curQuizSetting.is_enabled ? 'var(--green)' : 'var(--muted)';
+
+  var qres = await sb.from('kls_current_affair_questions').select('question_id, display_order').eq('quiz_id', curEntry.quiz_id).order('display_order');
+  var rows = qres.data || [];
+  for (var i = 0; i < rows.length; i++) savedQIds.push(rows[i].question_id);
+  renderSelectedTable();
+}
+
+async function createQuiz() {
+  if (!curEntry) return;
+  var quizId = 'CA_' + Date.now();
+  var res = await sb.from('kls_current_affair_settings').insert({
+    quiz_id: quizId, quiz_name: curEntry.title + ' - Quiz', time_limit: 15, total_questions: 0, is_enabled: false,
+    created_by: currentUser.id, updated_by: currentUser.id
+  }).select().single();
+  if (res.error) { showAlert('top-alert', res.error.message, 'error'); return; }
+  var upd = await sb.from('kls_current_affair_entries').update({ quiz_id: quizId, updated_by: currentUser.id }).eq('current_affair_entry_id', curEntry.current_affair_entry_id).select().single();
+  if (upd.error) { showAlert('top-alert', upd.error.message, 'error'); return; }
+  curEntry = upd.data;
+  await loadEntries();
+  await loadQuizForEntry();
+  showAlert('top-alert', 'Quiz created! Hav questions add karo.', 'success');
+}
+
+async function saveQuizSettings() {
+  if (!curQuizSetting) return;
+  var name = document.getElementById('qz-name').value.trim();
+  var time = parseInt(document.getElementById('qz-time').value, 10) || 15;
+  if (!name) { showAlert('quiz-alert', 'Quiz name required', 'error'); return; }
+  var res = await sb.from('kls_current_affair_settings').update({ quiz_name: name, time_limit: time, updated_by: currentUser.id }).eq('current_affair_setting_id', curQuizSetting.current_affair_setting_id);
+  if (res.error) { showAlert('quiz-alert', res.error.message, 'error'); return; }
+  curQuizSetting.quiz_name = name; curQuizSetting.time_limit = time;
+  showAlert('quiz-alert', 'Quiz settings saved!', 'success');
+}
+async function toggleQuizLive() {
+  if (!curQuizSetting) { document.getElementById('qz-toggle').checked = false; return; }
+  var enabled = document.getElementById('qz-toggle').checked;
+  await sb.from('kls_current_affair_settings').update({ is_enabled: enabled, updated_by: currentUser.id }).eq('current_affair_setting_id', curQuizSetting.current_affair_setting_id);
+  curQuizSetting.is_enabled = enabled;
+  var lbl = document.getElementById('qz-toggle-label');
+  lbl.textContent = enabled ? 'LIVE' : 'OFF';
+  lbl.style.color = enabled ? 'var(--green)' : 'var(--muted)';
+}
+
+// ===== BROWSE & ADD QUESTIONS (subject > chapter > quiz, same pattern as Daily Learning) =====
+async function loadSubjectsForBrowse() {
+  var res = await sb.from('kls_subjects').select('id,name').order('name');
+  var subs = res.data || [];
+  var sel = document.getElementById('f-subject');
+  var opts = '<option value="">-- Subject --</option>';
+  for (var i = 0; i < subs.length; i++) opts += '<option value="' + subs[i].id + '">' + esc(subs[i].name) + '</option>';
+  sel.innerHTML = opts;
+}
+async function onSubjectChange() {
+  var sid = document.getElementById('f-subject').value;
+  var chapSel = document.getElementById('f-chapter');
+  var quizSel = document.getElementById('f-quiz');
+  chapSel.innerHTML = '<option value="">-- Chapter --</option>';
+  chapSel.disabled = !sid;
+  quizSel.innerHTML = '<option value="">-- Quiz (optional) --</option>';
+  quizSel.disabled = true;
+  document.getElementById('q-browse-wrap').innerHTML = '<div class="sel-empty">Chapter select karo</div>';
+  document.getElementById('browse-count').textContent = '0';
+  if (!sid) return;
+  var res = await sb.from('kls_chapters').select('id,name,chapter_code').eq('subject_id', sid).order('name');
+  var chs = res.data || [];
+  var opts = '<option value="">-- Chapter --</option>';
+  for (var i = 0; i < chs.length; i++) opts += '<option value="' + esc(chs[i].chapter_code) + '">' + esc(chs[i].name) + '</option>';
+  chapSel.innerHTML = opts;
+  chapSel.disabled = false;
+}
+async function onChapterChange() {
+  var cc = document.getElementById('f-chapter').value;
+  var quizSel = document.getElementById('f-quiz');
+  quizSel.innerHTML = '<option value="">-- Quiz (optional) --</option>';
+  quizSel.disabled = true;
+  if (!cc) { document.getElementById('q-browse-wrap').innerHTML = '<div class="sel-empty">Chapter select karo</div>'; return; }
+  var res = await sb.from('kls_quizzes').select('quiz_id,quiz_name').eq('chapter_code', cc).order('quiz_name');
+  var rows = res.data || [];
+  if (rows.length) {
+    var opts = '<option value="">-- All Chapter Questions --</option>';
+    for (var i = 0; i < rows.length; i++) opts += '<option value="' + esc(rows[i].quiz_id) + '">' + esc(rows[i].quiz_name) + '</option>';
+    quizSel.innerHTML = opts;
+    quizSel.disabled = false;
+  }
+  await loadBrowseQuestions();
+}
+async function onQuizFilter() { await loadBrowseQuestions(); }
+
+async function loadBrowseQuestions() {
+  var cc = document.getElementById('f-chapter').value;
+  var qid = document.getElementById('f-quiz').value;
+  var wrap = document.getElementById('q-browse-wrap');
+  if (!cc) { wrap.innerHTML = '<div class="sel-empty">Chapter select karo</div>'; return; }
+  wrap.innerHTML = '<div class="loading"><span class="spinner"></span>Loading...</div>';
+  var query = sb.from('kls_questions').select('id,question,difficulty_level').eq('chapter_code', cc);
+  if (qid) query = query.eq('quiz_id', qid);
+  var res = await query.order('created_at', {ascending: false}).limit(200);
+  allBrowseQs = res.data || [];
+  document.getElementById('browse-count').textContent = allBrowseQs.length;
+  if (!allBrowseQs.length) { wrap.innerHTML = '<div class="sel-empty">No questions found</div>'; return; }
+  renderBrowse();
+}
+function renderBrowse() {
+  var selIds = {}; for (var i = 0; i < selectedQs.length; i++) selIds[selectedQs[i].id] = true;
+  var savedSet = {}; for (var i = 0; i < savedQIds.length; i++) savedSet[savedQIds[i]] = true;
+  var html = '<div class="q-browse">';
+  for (var i = 0; i < allBrowseQs.length; i++) {
+    var q = allBrowseQs[i];
+    var already = selIds[q.id] || savedSet[q.id];
+    var cls = diffClass(q.difficulty_level);
+    var txt = (q.question || '').substring(0, 110) + (q.question && q.question.length > 110 ? '...' : '');
+    html += '<div class="q-item ' + (already ? 'already' : '') + '" onclick="addQuestion(\'' + q.id + '\')">';
+    html += '<div class="q-text">' + esc(txt) + '</div>';
+    html += '<span class="q-badge ' + cls + '">' + esc(q.difficulty_level || '?') + '</span>';
+    html += '</div>';
+  }
+  html += '</div>';
+  document.getElementById('q-browse-wrap').innerHTML = html;
+}
+function addQuestion(qid) {
+  for (var i = 0; i < selectedQs.length; i++) if (selectedQs[i].id === qid) return;
+  for (var i = 0; i < savedQIds.length; i++) if (savedQIds[i] === qid) return;
+  var q = null;
+  for (var i = 0; i < allBrowseQs.length; i++) if (allBrowseQs[i].id === qid) { q = allBrowseQs[i]; break; }
+  if (!q) return;
+  selectedQs.push(q);
+  renderSelectedTable();
+  renderBrowse();
+}
+function removeQuestion(qid) {
+  selectedQs = selectedQs.filter(function(q){ return q.id !== qid; });
+  renderSelectedTable();
+  renderBrowse();
+}
+async function removeSavedQuestion(qid) {
+  if (!curEntry || !curEntry.quiz_id) return;
+  if (!confirm('Aa question quiz mathi remove karvu chhe?')) return;
+  await sb.from('kls_current_affair_questions').delete().eq('quiz_id', curEntry.quiz_id).eq('question_id', qid);
+  savedQIds = savedQIds.filter(function(id){ return id !== qid; });
+  var newTotal = savedQIds.length;
+  await sb.from('kls_current_affair_settings').update({ total_questions: newTotal }).eq('current_affair_setting_id', curQuizSetting.current_affair_setting_id);
+  if (curQuizSetting) curQuizSetting.total_questions = newTotal;
+  renderSelectedTable();
+}
+function renderSelectedTable() {
+  var total = savedQIds.length + selectedQs.length;
+  document.getElementById('sel-count').textContent = selectedQs.length + ' new';
+  document.getElementById('sel-total').textContent = total;
+  var saveBtn = document.getElementById('save-q-btn');
+  saveBtn.disabled = selectedQs.length === 0 || !curEntry || !curEntry.quiz_id;
+  var html = '';
+  if (savedQIds.length === 0 && selectedQs.length === 0) {
+    html = '<tr><td colspan="4" class="sel-empty">No questions selected yet</td></tr>';
+  } else {
+    if (savedQIds.length > 0) {
+      html += '<tr><td colspan="4" style="font-size:11px;color:var(--muted);padding:6px 10px;background:var(--bg)">Already saved: ' + savedQIds.length + ' questions (remove karva mate quiz reload karo)</td></tr>';
+    }
+    for (var i = 0; i < selectedQs.length; i++) {
+      var q = selectedQs[i];
+      var cls = diffClass(q.difficulty_level);
+      var txt = (q.question || '').substring(0, 90) + (q.question && q.question.length > 90 ? '...' : '');
+      html += '<tr>';
+      html += '<td style="color:var(--muted)">' + (savedQIds.length + i + 1) + '</td>';
+      html += '<td>' + esc(txt) + '</td>';
+      html += '<td><span class="q-badge ' + cls + '">' + esc(q.difficulty_level || '?') + '</span></td>';
+      html += '<td><button class="btn btn-danger btn-sm" onclick="removeQuestion(\'' + q.id + '\')">Remove</button></td>';
+      html += '</tr>';
+    }
+  }
+  document.getElementById('sel-tbody').innerHTML = html;
+}
+
+async function saveQuestions() {
+  if (!curEntry || !curEntry.quiz_id) { showAlert('top-alert', 'Pahela quiz create karo', 'error'); return; }
+  if (!selectedQs.length) return;
+  var btn = document.getElementById('save-q-btn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  var res2 = await sb.from('kls_current_affair_questions').select('display_order').eq('quiz_id', curEntry.quiz_id).order('display_order', {ascending: false}).limit(1);
+  var startOrder = (res2.data && res2.data.length ? res2.data[0].display_order : 0) + 1;
+  var rows = [];
+  for (var i = 0; i < selectedQs.length; i++) {
+    rows.push({ quiz_id: curEntry.quiz_id, question_id: selectedQs[i].id, display_order: startOrder + i });
+  }
+  var ins = await sb.from('kls_current_affair_questions').insert(rows);
+  btn.disabled = false; btn.textContent = 'Save Questions';
+  if (ins.error) { showAlert('top-alert', ins.error.message, 'error'); return; }
+  var newTotal = savedQIds.length + selectedQs.length;
+  await sb.from('kls_current_affair_settings').update({ total_questions: newTotal }).eq('current_affair_setting_id', curQuizSetting.current_affair_setting_id);
+  if (curQuizSetting) curQuizSetting.total_questions = newTotal;
+  for (var i = 0; i < selectedQs.length; i++) savedQIds.push(selectedQs[i].id);
+  selectedQs = [];
+  renderSelectedTable();
+  renderBrowse();
+  showAlert('top-alert', 'Questions saved!', 'success');
+}
+
+(async function(){
+  if (!await initAuth()) return;
+  await loadEntries();
+  await loadSubjectsForBrowse();
+})();
+</script>
+</body>
+</html>
