@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Question Suggestions - KAPILA</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
 <style>
 :root{--primary:#6c5ce7;--primary-light:#a29bfe;--bg:#f0efff;--card:#fff;--text:#2d3436;--muted:#636e72;--border:#e0dff7;--green:#00b894;--red:#d63031;--orange:#e17055;--radius:10px;--shadow:0 2px 12px rgba(108,92,231,.1);}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -55,6 +58,20 @@ label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bot
 .q-card .opts{font-size:13px;color:var(--muted);line-height:1.9;}
 .q-card .opts b{color:var(--green);}
 .count-badge{background:var(--primary);color:#fff;border-radius:12px;font-size:11px;padding:2px 8px;font-weight:700;}
+.sugg-row{display:flex;align-items:center;gap:10px;padding:12px 14px;margin-bottom:8px;}
+.sugg-row .meta-line{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:4px;}
+.sugg-row .qtext-row{font-size:14px;font-weight:600;line-height:1.4;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;}
+.sugg-row .sugg-snip{font-size:12px;color:#856404;background:#fff8e6;padding:3px 9px;border-radius:8px;display:inline-block;margin-top:4px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sugg-row .row-main{flex:1;min-width:0;}
+.sugg-row .row-actions{display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;}
+.preview-box{background:#f8f7ff;border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:18px;}
+.preview-label{font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;}
+.preview-q{font-size:15px;font-weight:600;line-height:1.7;margin-bottom:10px;word-break:break-word;}
+.preview-opt{padding:7px 10px;border-radius:6px;margin-bottom:5px;font-size:14px;background:#fff;border:1px solid var(--border);word-break:break-word;}
+.preview-opt.is-correct{background:#d4edda;border-color:#b7e2c3;color:#155724;font-weight:700;}
+.preview-solution{margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);font-size:13px;color:var(--muted);line-height:1.6;word-break:break-word;}
+.preview-solution .preview-label{margin-bottom:6px;}
+.katex{font-size:1.05em;}
 </style>
 </head>
 <body>
@@ -77,18 +94,33 @@ label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bot
   <div class="modal-box">
     <h3>Edit Question</h3>
     <div id="edit-alert"></div>
-    <div class="fg"><label>Question</label><textarea id="ef-question"></textarea></div>
-    <div class="opt-grid">
-      <div class="fg"><label>Option A</label><input id="ef-a"></div>
-      <div class="fg"><label>Option B</label><input id="ef-b"></div>
-      <div class="fg"><label>Option C</label><input id="ef-c"></div>
-      <div class="fg"><label>Option D</label><input id="ef-d"></div>
+
+    <div class="preview-box" id="ef-preview-wrap">
+      <div class="preview-label">&#128065; Live Preview (jevu student ne dekhashe)</div>
+      <div class="preview-q" id="ef-prev-question"></div>
+      <div id="ef-prev-opt-a" class="preview-opt"></div>
+      <div id="ef-prev-opt-b" class="preview-opt"></div>
+      <div id="ef-prev-opt-c" class="preview-opt"></div>
+      <div id="ef-prev-opt-d" class="preview-opt"></div>
+      <div id="ef-prev-opt-e" class="preview-opt" style="display:none"></div>
+      <div class="preview-solution">
+        <div class="preview-label">Solution</div>
+        <div id="ef-prev-solution"></div>
+      </div>
     </div>
-    <div class="fg"><label>Option E (optional)</label><input id="ef-e"></div>
+
+    <div class="fg"><label>Question</label><textarea id="ef-question" oninput="updateEfPreview()"></textarea></div>
+    <div class="opt-grid">
+      <div class="fg"><label>Option A</label><input id="ef-a" oninput="updateEfPreview()"></div>
+      <div class="fg"><label>Option B</label><input id="ef-b" oninput="updateEfPreview()"></div>
+      <div class="fg"><label>Option C</label><input id="ef-c" oninput="updateEfPreview()"></div>
+      <div class="fg"><label>Option D</label><input id="ef-d" oninput="updateEfPreview()"></div>
+    </div>
+    <div class="fg"><label>Option E (optional)</label><input id="ef-e" oninput="updateEfPreview()"></div>
     <div class="opt-grid">
       <div class="fg">
         <label>Correct Answer</label>
-        <select id="ef-correct">
+        <select id="ef-correct" onchange="updateEfPreview()">
           <option value="A">A</option><option value="B">B</option>
           <option value="C">C</option><option value="D">D</option>
           <option value="E">E</option>
@@ -103,7 +135,7 @@ label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bot
         </select>
       </div>
     </div>
-    <div class="fg"><label>Solution</label><textarea id="ef-solution"></textarea></div>
+    <div class="fg"><label>Solution</label><textarea id="ef-solution" oninput="updateEfPreview()"></textarea></div>
     <div class="fg"><label>Suggestion (received)</label><textarea id="ef-suggestion" disabled style="background:#f5f5f5"></textarea></div>
     <div class="modal-footer">
       <button class="btn btn-danger" onclick="deleteFromModal()">Delete Question</button>
@@ -139,6 +171,37 @@ function diffClass(d) {
   if (d === 'સરળ') return 'q-easy';
   if (d === 'મુશ્કેલ') return 'q-hard';
   return 'q-medium';
+}
+
+function renderRichMath(el) {
+  if (window.renderMathInElement) {
+    try {
+      renderMathInElement(el, {
+        delimiters: [
+          {left: '$$', right: '$$', display: true},
+          {left: '\\[', right: '\\]', display: true},
+          {left: '$', right: '$', display: false},
+          {left: '\\(', right: '\\)', display: false}
+        ],
+        throwOnError: false
+      });
+    } catch (e) { /* ignore malformed latex */ }
+  }
+}
+
+function updateEfPreview() {
+  var correct = (document.getElementById('ef-correct').value || '').toUpperCase();
+  document.getElementById('ef-prev-question').innerHTML = document.getElementById('ef-question').value || '<span style="color:var(--muted)">(question khali chhe)</span>';
+  ['a','b','c','d','e'].forEach(function(letter){
+    var val = document.getElementById('ef-' + letter).value;
+    var box = document.getElementById('ef-prev-opt-' + letter);
+    if (letter === 'e' && !val) { box.style.display = 'none'; return; }
+    box.style.display = '';
+    box.innerHTML = letter.toUpperCase() + ') ' + (val || '');
+    box.classList.toggle('is-correct', correct === letter.toUpperCase());
+  });
+  document.getElementById('ef-prev-solution').innerHTML = document.getElementById('ef-solution').value || '<span style="color:var(--muted)">(solution nathi)</span>';
+  renderRichMath(document.getElementById('ef-preview-wrap'));
 }
 
 async function initAuth() {
@@ -190,23 +253,19 @@ function renderList() {
   for (var i = 0; i < suggestions.length; i++) {
     var q = suggestions[i];
     var cls = diffClass(q.difficulty_level);
-    html += '<div class="card q-card">';
-    html += '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">';
+    html += '<div class="card sugg-row">';
+    html += '<div class="row-main">';
+    html += '<div class="meta-line">';
     html += '<span class="chip">' + esc(subjectNameFor(q)) + '</span>';
     html += '<span class="chip">' + esc(chapterNameFor(q)) + '</span>';
     html += '<span class="q-badge ' + cls + '">' + esc(q.difficulty_level || '?') + '</span>';
     html += '</div>';
-    html += '<div class="qtext">' + esc(q.question) + '</div>';
-    html += '<div class="opts">';
-    html += 'A) ' + esc(stripPrefix(q.option_a)) + (q.correct_answer === 'A' ? ' <b>&#10003;</b>' : '') + '<br>';
-    html += 'B) ' + esc(stripPrefix(q.option_b)) + (q.correct_answer === 'B' ? ' <b>&#10003;</b>' : '') + '<br>';
-    html += 'C) ' + esc(stripPrefix(q.option_c)) + (q.correct_answer === 'C' ? ' <b>&#10003;</b>' : '') + '<br>';
-    html += 'D) ' + esc(stripPrefix(q.option_d)) + (q.correct_answer === 'D' ? ' <b>&#10003;</b>' : '');
+    html += '<div class="qtext-row">' + esc(q.question) + '</div>';
+    html += '<div class="sugg-snip">&#128161; ' + esc(q.suggestion) + '</div>';
     html += '</div>';
-    html += '<div class="sugg-box">&#128161; <strong>Suggestion:</strong> ' + esc(q.suggestion) + '</div>';
-    html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">';
-    html += '<button class="btn btn-primary btn-sm" onclick="openEdit(\'' + q.id + '\')">Edit Question</button>';
-    html += '<button class="btn btn-success btn-sm" onclick="resolveOnly(\'' + q.id + '\')">Mark Resolved</button>';
+    html += '<div class="row-actions">';
+    html += '<button class="btn btn-primary btn-sm" onclick="openEdit(\'' + q.id + '\')">Edit</button>';
+    html += '<button class="btn btn-success btn-sm" onclick="resolveOnly(\'' + q.id + '\')">Resolve</button>';
     html += '</div>';
     html += '</div>';
   }
@@ -241,6 +300,7 @@ function openEdit(id) {
   document.getElementById('ef-difficulty').value = q.difficulty_level || 'મધ્યમ';
   document.getElementById('ef-solution').value = q.solution || '';
   document.getElementById('ef-suggestion').value = q.suggestion || '';
+  updateEfPreview();
   document.getElementById('edit-modal').classList.add('open');
 }
 function closeModal() {
