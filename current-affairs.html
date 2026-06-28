@@ -135,10 +135,14 @@ label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bot
           <div class="sec-label">Photos</div>
           <div id="photo-list"><div class="sel-empty">No photos added</div></div>
           <div class="add-row">
-            <div class="fg"><label>Photo URL</label><input id="new-photo-url" placeholder="https://..."></div>
-            <div class="fg" style="max-width:100px"><label>Order</label><input type="number" id="new-photo-order" value="1" min="1"></div>
-            <button class="btn btn-primary" onclick="addPhoto()">+ Add</button>
+            <div class="fg" style="max-width:90px"><label>Order</label><input type="number" id="new-photo-order" value="1" min="1"></div>
+            <button class="btn btn-success" id="upload-photo-btn" onclick="triggerPhotoUpload()">&#128247; Upload Photo</button>
+            <input type="file" id="photo-file-input" accept="image/*" style="display:none" onchange="handlePhotoFileSelected(event)">
+            <span style="color:var(--muted);font-size:12px;align-self:center">ya</span>
+            <div class="fg" style="flex:2;min-width:180px"><label>Photo URL paste karo</label><input id="new-photo-url" placeholder="https://..."></div>
+            <button class="btn btn-primary" onclick="addPhoto()">+ Add URL</button>
           </div>
+          <div id="upload-progress" style="display:none;font-size:12px;color:var(--muted);margin:-6px 0 10px"></div>
         </div>
 
         <div class="card" id="quiz-card" style="display:none">
@@ -377,9 +381,83 @@ async function addPhoto() {
   });
   if (res.error) { showAlert('top-alert', res.error.message, 'error'); return; }
   document.getElementById('new-photo-url').value = '';
-  document.getElementById('new-photo-order').value = '1';
+  document.getElementById('new-photo-order').value = String(order + 1);
   await loadPhotos();
 }
+
+// ===== DEVICE UPLOAD via R2 presigned URL (same edge function the app uses) =====
+function triggerPhotoUpload() {
+  if (!curEntry) { showAlert('top-alert', 'Pahela entry save karo', 'error'); return; }
+  document.getElementById('photo-file-input').click();
+}
+
+async function uploadPhotoToR2(file) {
+  var sessRes = await sb.auth.getSession();
+  var session = sessRes.data.session;
+  if (!session) throw new Error('Not authenticated');
+  var token = session.access_token;
+  var safeName = file.name.replace(/[^A-Za-z0-9._-]/g, '_');
+  var fileName = Date.now() + '_' + safeName;
+  var contentType = file.type || 'application/octet-stream';
+
+  var presignRes = await fetch(SUPABASE_URL + '/functions/v1/get-r2-presigned-url', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_ANON,
+      'Authorization': 'Bearer ' + token
+    },
+    body: JSON.stringify({ fileName: fileName, contentType: contentType, folder: 'current-affairs' })
+  });
+  if (!presignRes.ok) {
+    var errText = await presignRes.text();
+    throw new Error('Presign failed (' + presignRes.status + '): ' + errText);
+  }
+  var data = await presignRes.json();
+  var uploadUrl = data.url || data.uploadUrl;
+  if (!uploadUrl) throw new Error('Upload URL missing in server response');
+
+  var putRes = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': contentType },
+    body: file
+  });
+  if (!putRes.ok) throw new Error('R2 upload failed (' + putRes.status + ')');
+
+  var publicUrl = data.publicUrl;
+  if (!publicUrl) throw new Error('Server response ma publicUrl nathi - R2 public domain config check karo');
+  return publicUrl;
+}
+
+async function handlePhotoFileSelected(ev) {
+  var file = ev.target.files[0];
+  ev.target.value = '';
+  if (!file || !curEntry) return;
+  var btn = document.getElementById('upload-photo-btn');
+  var progressEl = document.getElementById('upload-progress');
+  btn.disabled = true;
+  progressEl.style.display = '';
+  progressEl.textContent = '&#8987; Uploading...'.replace('&#8987;', '⏳');
+  try {
+    var publicUrl = await uploadPhotoToR2(file);
+    var order = parseInt(document.getElementById('new-photo-order').value, 10) || 1;
+    var res = await sb.from('kls_current_affair_entry_photos').insert({
+      current_affair_entry_id: curEntry.current_affair_entry_id, photo_url: publicUrl, display_order: order
+    });
+    if (res.error) throw new Error(res.error.message);
+    document.getElementById('new-photo-order').value = String(order + 1);
+    progressEl.textContent = '✓ Uploaded!';
+    await loadPhotos();
+    showAlert('top-alert', 'Photo uploaded!', 'success');
+  } catch (err) {
+    showAlert('top-alert', 'Upload failed: ' + err.message, 'error');
+    progressEl.textContent = '';
+  } finally {
+    btn.disabled = false;
+    setTimeout(function(){ progressEl.style.display = 'none'; }, 2500);
+  }
+}
+
 async function removePhoto(id) {
   if (!confirm('Aa photo remove karvu chhe?')) return;
   await sb.from('kls_current_affair_entry_photos').delete().eq('current_affair_entry_photo_id', id);
