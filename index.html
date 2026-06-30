@@ -4,7 +4,7 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
 .topbar{background:var(--card);border-bottom:1px solid var(--border);padding:10px 16px;font-size:12px;color:var(--muted);font-weight:600;display:flex;align-items:center;justify-content:space-between;}
-.wrap{padding:16px;max-width:900px;margin:0 auto;}
+.wrap{padding:16px;max-width:1000px;margin:0 auto;}
 .page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;}
 .page-title{font-size:22px;font-weight:700;}
 .page-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
@@ -24,54 +24,32 @@ label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bot
 .btn-outline{background:transparent;color:var(--primary);border:1.5px solid var(--primary);}
 .btn-sm{padding:5px 10px;font-size:12px;}
 .btn-block{width:100%;justify-content:center;padding:12px;}
-.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
-.tab{padding:6px 14px;border-radius:20px;border:none;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;background:var(--card);color:var(--muted);}
-.tab.active{background:var(--primary);color:#fff;}
-.tab.orange{background:var(--orange);color:#fff;}
-.badge-status{display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;}
-.badge-pending{background:#fff3cd;color:#856404;}
-.badge-approved,.badge-active,.badge-true,.badge-live{background:#d4edda;color:#155724;}
-.badge-rejected,.badge-inactive,.badge-false{background:#f8d7da;color:#721c24;}
-.badge-needs_more_info{background:#d1ecf1;color:#0c5460;}
+.role-tag{font-size:11px;padding:2px 8px;border-radius:10px;font-weight:700;}
 .badge-owner{background:#e9d5ff;color:#6d28d9;}
 .badge-admin{background:#dbeafe;color:#1e40af;}
 .badge-moderator{background:#fce7f3;color:#9d174d;}
-.role-tag{font-size:11px;padding:2px 8px;border-radius:10px;font-weight:700;}
-.user-card{border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px;background:var(--card);}
-.user-card h4{font-size:15px;margin-bottom:4px;}
-.user-card .meta{font-size:12px;color:var(--muted);line-height:1.8;}
-.user-card .actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
-.stats-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
-.stat-card{background:var(--card);border-radius:var(--radius);padding:14px 16px;flex:1;min-width:100px;box-shadow:var(--shadow);}
-.stat-card .val{font-size:28px;font-weight:800;color:var(--primary);}
-.stat-card .lbl{font-size:11px;color:var(--muted);font-weight:600;margin-top:2px;}
-.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:12px;}
-.bar-label{width:55px;color:var(--muted);flex-shrink:0;}
-.bar-track{flex:1;background:var(--border);border-radius:4px;height:8px;}
-.bar-fill{height:8px;border-radius:4px;background:var(--primary);}
-.bar-info{font-size:11px;color:var(--muted);white-space:nowrap;}
 .alert{padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:12px;}
 .alert-error{background:#f8d7da;color:#721c24;}
 .alert-success{background:#d4edda;color:#155724;}
 .alert-info{background:#d1ecf1;color:#0c5460;}
-.loading,.empty{text-align:center;padding:30px;color:var(--muted);font-size:14px;}
-.spinner{display:inline-block;width:22px;height:22px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:6px;}
-@keyframes spin{to{transform:rotate(360deg);}}
-.sec-label{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px;}
-.divider{border:none;border-top:1px solid var(--border);margin:12px 0;}
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;align-items:center;justify-content:center;}
-.modal-overlay.open{display:flex;}
-.modal-box{background:var(--card);border-radius:var(--radius);padding:24px;max-width:500px;width:95%;max-height:90vh;overflow-y:auto;}
-.modal-box h3{margin-bottom:16px;}
-.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
-.sync-time{font-size:11px;color:var(--muted);}
-@media(max-width:600px){.stats-row .stat-card{min-width:80px;}.page-title{font-size:18px;}}
 .login-card{background:var(--card);border-radius:var(--radius);padding:36px;box-shadow:var(--shadow);max-width:400px;margin:60px auto;}
 .login-card h2{color:var(--primary);margin-bottom:24px;font-size:22px;}
-.module-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;}
-.mod-btn{background:var(--card);border:none;border-radius:var(--radius);padding:18px 14px;cursor:pointer;font-size:14px;font-weight:600;color:var(--text);text-align:left;box-shadow:var(--shadow);transition:transform .15s;}
-.mod-btn:hover{transform:translateY(-2px);}
 #page-dashboard{display:none;}
+
+.section-block{margin-bottom:28px;}
+.section-head{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.section-icon{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
+.section-icon.admin-icon{background:linear-gradient(135deg,#74b9ff33,#0984e333);}
+.section-icon.content-icon{background:linear-gradient(135deg,#ffeaa733,#fdcb6e33);}
+.section-title{font-size:16px;font-weight:800;}
+.section-sub{font-size:12px;color:var(--muted);margin-top:1px;}
+.module-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+@media(max-width:700px){.module-grid{grid-template-columns:1fr 1fr;}}
+@media(max-width:420px){.module-grid{grid-template-columns:1fr;}}
+.mod-btn{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 14px;cursor:pointer;font-size:13.5px;font-weight:700;color:var(--text);text-align:left;box-shadow:var(--shadow);transition:transform .15s,border-color .15s;display:flex;flex-direction:column;gap:4px;}
+.mod-btn:hover{transform:translateY(-2px);border-color:var(--primary-light);}
+.mod-btn .mod-emoji{font-size:20px;}
+.mod-btn .mod-desc{font-size:11px;color:var(--muted);font-weight:500;line-height:1.3;}
 </style></head><body>
 <div class="topbar">KAPILA Management System</div>
 <!-- LOGIN -->
@@ -91,24 +69,51 @@ label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bot
       <div style="font-size:12px;color:var(--muted)">Access Granted: <span id="dash-role" class="role-tag"></span></div></div>
     <button class="btn btn-ghost btn-sm" onclick="doLogout2()">Logout</button>
   </div>
-  <div class="sec-label">Choose a module:</div>
-  <div class="module-grid">
-    <button class="mod-btn" style="background:linear-gradient(135deg,#a29bfe22,#6c5ce722)" onclick="go('analytics.html')">📊 App Analytics</button>
-    <button class="mod-btn" style="background:linear-gradient(135deg,#00b89422,#00cec922)" onclick="go('revenue.html')">💰 Revenue Analytics</button>
-    <button class="mod-btn" style="background:linear-gradient(135deg,#fd79a822,#e8408422)" onclick="go('verification.html')">✅ Verification Requests</button>
-    <button class="mod-btn" style="background:linear-gradient(135deg,#74b9ff22,#0984e322)" onclick="go('verified.html')">🏅 Verified Users</button>
-    <button class="mod-btn" style="background:linear-gradient(135deg,#ff7f7f22,#d6303122)" onclick="go('reports.html')">🚩 Reports</button>
-    <button class="mod-btn" style="background:linear-gradient(135deg,#ffeaa722,#fdcb6e22)" onclick="go('suggestions.html')">💡 Suggestions</button>
-    <button class="mod-btn" style="background:linear-gradient(135deg,#dfe6e922,#b2bec322)" onclick="go('feedback.html')">💬 Ask/Feedback Replies</button>
-    <button class="mod-btn" style="background:linear-gradient(135deg,#74b9ff22,#a29bfe22)" onclick="go('affiliate-requests.html')">🤝 Affiliate Requests</button>
-    <button class="mod-btn" style="background:linear-gradient(135deg,#55efc422,#00b89422)" onclick="go('affiliate-payouts.html')">💸 Affiliate Payouts</button>
-    <button class="mod-btn" style="background:linear-gradient(135deg,#fd79a822,#fdcb6e22)" onclick="go('affiliate-commission.html')">📋 Commission Rules</button>
-    <button class="mod-btn" style="background:linear-gradient(135deg,#fdcb6e22,#e1705522)" onclick="go('subscription-plans.html')">📦 Subscription Plans</button>
-    <button class="mod-btn" style="background:linear-gradient(135deg,#ff7f7f22,#a29bfe22)" onclick="go('test-series.html')">📝 Test Series Manager</button>
-    <button class="mod-btn" style="background:linear-gradient(135deg,#74b9ff22,#dfe6e922)" onclick="go('mock-broadcast.html')">📢 Mock Broadcast</button>
-    <button class="mod-btn" style="background:linear-gradient(135deg,#a29bfe22,#dfe6e922)" onclick="go('notification-broadcast.html')">🔔 Notification Broadcast</button>
-    <button class="mod-btn" style="background:linear-gradient(135deg,#74b9ff22,#a29bfe22)" onclick="go('admin-users.html')">👤 Admin Users</button>
-    <button class="mod-btn" style="background:linear-gradient(135deg,#dfe6e922,#b2bec322)" onclick="go('audit-logs.html')">📜 Audit Logs</button>
+
+  <!-- ═══════════ ADMINISTRATION ═══════════ -->
+  <div class="section-block">
+    <div class="section-head">
+      <div class="section-icon admin-icon">⚙️</div>
+      <div>
+        <div class="section-title">Administration</div>
+        <div class="section-sub">Users, revenue, moderation, ane system settings</div>
+      </div>
+    </div>
+    <div class="module-grid">
+      <button class="mod-btn" onclick="go('analytics.html')"><span class="mod-emoji">📊</span>App Analytics<span class="mod-desc">Usage &amp; growth stats</span></button>
+      <button class="mod-btn" onclick="go('revenue.html')"><span class="mod-emoji">💰</span>Revenue Analytics<span class="mod-desc">Sales &amp; payment trends</span></button>
+      <button class="mod-btn" onclick="go('verification.html')"><span class="mod-emoji">✅</span>Verification Requests<span class="mod-desc">Pending user verifications</span></button>
+      <button class="mod-btn" onclick="go('verified.html')"><span class="mod-emoji">🏅</span>Verified Users<span class="mod-desc">Manage verified badges</span></button>
+      <button class="mod-btn" onclick="go('reports.html')"><span class="mod-emoji">🚩</span>Reports<span class="mod-desc">User &amp; content reports</span></button>
+      <button class="mod-btn" onclick="go('feedback.html')"><span class="mod-emoji">💬</span>Ask/Feedback Replies<span class="mod-desc">Respond to user queries</span></button>
+      <button class="mod-btn" onclick="go('affiliate-requests.html')"><span class="mod-emoji">🤝</span>Affiliate Requests<span class="mod-desc">New affiliate applications</span></button>
+      <button class="mod-btn" onclick="go('affiliate-payouts.html')"><span class="mod-emoji">💸</span>Affiliate Payouts<span class="mod-desc">Process pending payouts</span></button>
+      <button class="mod-btn" onclick="go('affiliate-commission.html')"><span class="mod-emoji">📋</span>Commission Rules<span class="mod-desc">Affiliate earning rules</span></button>
+      <button class="mod-btn" onclick="go('subscription-plans.html')"><span class="mod-emoji">📦</span>Subscription Plans<span class="mod-desc">Pricing &amp; plan setup</span></button>
+      <button class="mod-btn" onclick="go('notification-broadcast.html')"><span class="mod-emoji">🔔</span>Notification Broadcast<span class="mod-desc">Send app notifications</span></button>
+      <button class="mod-btn" onclick="go('admin-users.html')"><span class="mod-emoji">👤</span>Admin Users<span class="mod-desc">Manage admin roles</span></button>
+      <button class="mod-btn" onclick="go('audit-logs.html')"><span class="mod-emoji">📜</span>Audit Logs<span class="mod-desc">Admin activity history</span></button>
+    </div>
+  </div>
+
+  <!-- ═══════════ CONTENT DEVELOPMENT ═══════════ -->
+  <div class="section-block">
+    <div class="section-head">
+      <div class="section-icon content-icon">📚</div>
+      <div>
+        <div class="section-title">Content Development</div>
+        <div class="section-sub">Questions, quizzes, current affairs ane mock tests</div>
+      </div>
+    </div>
+    <div class="module-grid">
+      <button class="mod-btn" onclick="go('question-bank.html')"><span class="mod-emoji">🗂️</span>Question Bank<span class="mod-desc">Subjects, chapters &amp; questions</span></button>
+      <button class="mod-btn" onclick="go('suggestions.html')"><span class="mod-emoji">💡</span>Suggestions<span class="mod-desc">User-reported question fixes</span></button>
+      <button class="mod-btn" onclick="go('daily-learning.html')"><span class="mod-emoji">📘</span>Daily Learning<span class="mod-desc">Daily quiz setup</span></button>
+      <button class="mod-btn" onclick="go('monthly_quiz_admin.html')"><span class="mod-emoji">🗓️</span>Monthly Quiz<span class="mod-desc">Monthly quiz setup</span></button>
+      <button class="mod-btn" onclick="go('current-affairs.html')"><span class="mod-emoji">📰</span>Current Affairs<span class="mod-desc">Daily affairs blog &amp; quiz</span></button>
+      <button class="mod-btn" onclick="go('test-series.html')"><span class="mod-emoji">📝</span>Test Series Manager<span class="mod-desc">Manage mock test series</span></button>
+      <button class="mod-btn" onclick="go('mock-broadcast.html')"><span class="mod-emoji">📢</span>Mock Broadcast<span class="mod-desc">Publish mock tests live</span></button>
+    </div>
   </div>
 </div>
 <script>
